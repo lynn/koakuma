@@ -54,7 +54,7 @@ async def on_message(message):
             if game is not current: return
 
         # Slowly unmask the answer.
-        mask = list(re.sub(r"[^-() _]", '●', game.answer))
+        mask = list(re.sub(r'\w', '●', game.answer))
         indices = [i for i, c in enumerate(mask) if c == '●']
         random.shuffle(indices)
         for i in indices:
