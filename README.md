@@ -7,7 +7,7 @@ Discord bot for a Danbooru tag-guessing game. [Play it here!](https://discord.gg
 Store a bot client token in the environment variable `KOAKUMA_TOKEN`, then `python3 koakuma.py` to run the bot.
 
 ## Gameplay
-Type `!start` to begin the game.
+Type `!start` to begin the game (or type `!start kafkaesque` if you like Kafka).
 
 First, Koakuma links a number of Danbooru images that share a common, randomly-selected tag.
 

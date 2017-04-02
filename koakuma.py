@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import asyncio, discord, json, random, os, pprint, re, requests, time
 
 DANBOORU = 'https://danbooru.donmai.us'
@@ -12,12 +13,13 @@ def normalize(s):
 
 class Game:
     with open('tags.txt') as f: tags = f.read().strip().split('\n')
+    with open("kafka-tags.txt") as f: kafka_tags = f.read().strip().split("\n")
     with open('aliases.json') as f: aliases = json.load(f)
-
-    def __init__(self, safe=True):
+    def __init__(self, safe=True, kafka=False):
         print('Starting a new game...')
         while True:
-            self.tag = random.choice(self.tags)
+            if kafka: self.tag = random.choice(self.kafka_tags)
+            else: self.tag = random.choice(self.tags)
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(x) for x in self.aliases.get(self.answer, [])]
@@ -46,8 +48,12 @@ async def on_message(message):
         if game:
             await say('Already started.')
         else:
-            current = game = Game()
-            await say("Find the common tag between these %d images:" % NUM_IMAGES)
+            if len(message.content.split()) == 2 and message.content.split()[1].lower() == "kafkaesque":
+                current = game = Game(kafka=True)
+                await say("Find the common tag between these %d images:\n(kafkaesque)" % NUM_IMAGES)
+            else:
+                current = game = Game()
+                await say("Find the common tag between these %d images:" % NUM_IMAGES)
             for url in game.urls:
                 await say(url)
                 await asyncio.sleep(TIME_BETWEEN_IMAGES)
