@@ -1,0 +1,8 @@
+tags.json
+tags2.json
+tags.py
+koakuma.jpg
+__pycache__/
+*.py[cod]
+*$py.class
+
