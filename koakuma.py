@@ -36,7 +36,7 @@ client = discord.Client()
 
 @client.event
 async def on_ready():
-    print('Ready with %d tags.' % len(tags))
+    print('Ready; loaded %d tags.' % len(tags))
 
 @client.event
 async def on_message(message):
@@ -45,28 +45,26 @@ async def on_message(message):
     if message.author == client.user: return
 
     if message.content.startswith('!start'):
-        if game:
-            await say('Already started.')
-        else:
-            current = game = Game()
-            await say("Find the common tag between these images:")
-            for url in game.urls:
-                await say(url)
-                await asyncio.sleep(TIME_BETWEEN_IMAGES)
-                if game is not current: return
+        if game: return
+        current = game = Game()
+        await say("Find the common tag between these images:")
+        for url in game.urls:
+            await say(url)
+            await asyncio.sleep(TIME_BETWEEN_IMAGES)
+            if game is not current: return
 
-            # Slowly unmask the answer.
-            mask = list(re.sub(r"[^-() _]", '●', game.answer))
-            indices = [i for i, c in enumerate(mask) if c == '●']
-            random.shuffle(indices)
-            for i in indices:
-                await say('Hint: **`%s`**' % ''.join(mask))
-                await asyncio.sleep(TIME_BETWEEN_LETTERS)
-                if game is not current: return
-                mask[i] = game.answer[i]
+        # Slowly unmask the answer.
+        mask = list(re.sub(r"[^-() _]", '●', game.answer))
+        indices = [i for i, c in enumerate(mask) if c == '●']
+        random.shuffle(indices)
+        for i in indices:
+            await say('Hint: **`%s`**' % ''.join(mask))
+            await asyncio.sleep(TIME_BETWEEN_LETTERS)
+            if game is not current: return
+            mask[i] = game.answer[i]
 
-            await say("Time's up! The answer was **`%s`**." % game.pretty_tag)
-            game = None
+        await say("Time's up! The answer was **`%s`**." % game.pretty_tag)
+        game = None
 
     elif game and normalize(message.content) in game.answers:
         answer = game.pretty_tag
