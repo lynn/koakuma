@@ -65,13 +65,6 @@ async def on_message(message):
             await say("Time's up! The answer was **`%s`**." % game.pretty_tag)
             current = game = None
 
-    elif message.content.startswith('!stop'):
-        if game:
-            answer = game.pretty_tag; game = None
-            await say('Aborting game. The answer was **`%s`**.' % answer)
-        else:
-            await say('No game active.')
-
     elif game and normalize(message.content) in game.answers:
         answer = game.pretty_tag; game = None
         await say('%s got it! The answer was **`%s`**.' % (message.author.display_name, answer))
