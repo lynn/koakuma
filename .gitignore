@@ -1,5 +1,4 @@
-tags.json
-tags2.json
+tags*.json
 tags.py
 koakuma.jpg
 __pycache__/

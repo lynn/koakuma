@@ -1,4 +1,4 @@
-import asyncio, discord, json, random, os, pprint, re, requests, time
+import asyncio, discord, json, random, os, re, requests, time
 
 ROOT = 'https://danbooru.donmai.us'
 NUM_IMAGES = 9
