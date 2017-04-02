@@ -1,5 +1,5 @@
 # Koakuma!
-Discord bot for a Danbooru tag-guessing game.
+Discord bot for a Danbooru tag-guessing game. [Play it here!](https://discord.gg/ZyrkTTS)
 
 ![screenshot](screenshot.png)
 
