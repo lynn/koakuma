@@ -1,6 +1,6 @@
 import asyncio, discord, json, lxml.html, random, os, re, requests, time
 
-ROOT = 'https://danbooru.donmai.us'
+ROOT = 'https://safebooru.donmai.us'
 NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
@@ -15,7 +15,7 @@ def normalize(s):
 
 def tag_wiki_embed(tag):
     """Return a Discord Embed describing the given tag, or None."""
-    wiki_url = 'https://danbooru.donmai.us/wiki_pages/' + tag
+    wiki_url = ROOT + '/wiki_pages/' + tag
     try:
         r = requests.get(wiki_url)
         r.raise_for_status()
@@ -43,7 +43,7 @@ class Game:
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.answer, [])]
-            url = ROOT + '/posts.json?limit=%d&random=true&tags=%s rating:s' % (NUM_IMAGES, self.tag)
+            url = ROOT + '/posts.json?limit=%d&random=true&tags=%s -ugoira' % (NUM_IMAGES, self.tag)
             try:
                 js = requests.get(url).json()
                 self.urls = [ROOT + re.sub(r'__\w+__', '', j['large_file_url']) for j in js]

@@ -16,7 +16,7 @@ Store a bot client token in the environment variable `KOAKUMA_TOKEN`, then `pyth
 * Type tags in the channel to guess the answer!
 
 ## Is this SFW?
-By default (and on the server) Koakuma only serves images also tagged with `rating:s` (safe). You can run your own instance and remove that bit of the query, of course, if you’d prefer…
+Yes; by default (and on the official Discord server) Koakuma only serves images from `safebooru.donmai.us`. You can run your own instance and point it to `danbooru.donmai.us`, of course, if you’d prefer…
 
 ## Why Koakuma?
 Well, she fetches stuff from libraries.
