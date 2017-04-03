@@ -42,7 +42,7 @@ class Game:
             self.tag = random.choice(tags)
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
-            self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.answer, [])]
+            self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
             url = ROOT + '/posts.json?limit=%d&random=true&tags=%s -ugoira' % (NUM_IMAGES, self.tag)
             try:
                 js = requests.get(url).json()
