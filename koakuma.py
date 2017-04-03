@@ -9,9 +9,31 @@ with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
 
 def normalize(s):
+    # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
     s = ' '.join(s.lower().replace('_', ' ').split())
-    # Remove paren credits, e.g. "serval (kemono friends)" → "serval"
     return re.sub(r'\s*\([^)]+\)$', '', s)
+
+def tag_wiki_embed(tag):
+    """Return a Discord Embed describing the given tag, or None."""
+    wiki_url = 'https://danbooru.donmai.us/wiki_pages/' + tag
+    try:
+        r = requests.get(wiki_url)
+        r.raise_for_status()
+        doc = lxml.html.fromstring(r.content.decode('utf-8'))
+
+        # Find the first classless <p> tag that *directly* has Latin text in it.
+        for p in doc.xpath('//*[@id="wiki-page-body"]/p[not(@class)]'):
+            # text_content() changes 'a<br>b' into 'ab', so fix newlines:
+            for br in p.xpath('//br'):
+                br.tail = '\n' + (br.tail or '')
+            has_latin = lambda s: s and re.match(r'[a-zA-Z]', s)
+            if has_latin(p.text) or any(has_latin(c.tail) for c in p.iterchildren()):
+                # Gotcha! Now strip parentheticals; they're mostly just Japanese names.
+                stripped = re.sub(r'\s*\([^)]*\)', '', p.text_content())
+                return discord.Embed(title=tag.replace('_', ' '), url=wiki_url, description=stripped)
+
+    except requests.exceptions.RequestException as e:
+        print(e)
 
 class Game:
     def __init__(self):
@@ -71,19 +93,7 @@ async def on_message(message):
         reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
 
     if reveal:
-        wiki_embed = None
-        try:
-            wiki_url = 'https://danbooru.donmai.us/wiki_pages/' + game.tag
-            r = requests.get(wiki_url)
-            for p in lxml.html.fromstring(r.content).xpath('//*[@id="wiki-page-body"]/p[not(@class)]'):
-                # Hack: skip over <p> tags without bare text.
-                bare_text = (p.text or '') + ''.join(c.tail or '' for c in p.iterchildren())
-                if not bare_text.strip(): continue
-                wiki_embed = discord.Embed(title=game.pretty_tag, description=p.text_content(), url=wiki_url)
-                break
-        except Exception as e:
-            print(e)
-
+        wiki_embed = tag_wiki_embed(game.tag)
         game = None
         await client.send_message(message.channel, reveal, embed=wiki_embed)
         await say('Type `!start` to play another game.')
