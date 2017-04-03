@@ -24,7 +24,7 @@ class Game:
             url = ROOT + '/posts.json?limit=%d&random=true&tags=%s rating:s' % (NUM_IMAGES, self.tag)
             try:
                 js = requests.get(url).json()
-                self.urls = [ROOT + '/data/' + j['file_url'].split('__')[-1] for j in js]
+                self.urls = [ROOT + re.sub('__\w+__', '', j['large_file_url']) for j in js]
             except:
                 time.sleep(1)
                 continue
