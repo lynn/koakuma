@@ -24,7 +24,7 @@ class Game:
             url = ROOT + '/posts.json?limit=%d&random=true&tags=%s rating:s' % (NUM_IMAGES, self.tag)
             try:
                 js = requests.get(url).json()
-                self.urls = [ROOT + re.sub('__\w+__', '', j['large_file_url']) for j in js]
+                self.urls = [ROOT + re.sub(r'__\w+__', '', j['large_file_url']) for j in js]
             except:
                 time.sleep(1)
                 continue
@@ -71,5 +71,9 @@ async def on_message(message):
         game = None
         await say('%s got it! The answer was **`%s`**.' % (message.author.display_name, answer))
         await say('Type `!start` to play another game.')
+
+@client.event
+async def on_message_edit(before, after):
+    await on_message(after)
 
 client.run(os.getenv('KOAKUMA_TOKEN'))
