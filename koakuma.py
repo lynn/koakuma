@@ -1,4 +1,4 @@
-import asyncio, discord, json, random, os, re, requests, time
+import asyncio, discord, json, lxml.html, random, os, re, requests, time
 
 ROOT = 'https://danbooru.donmai.us'
 NUM_IMAGES = 9
@@ -44,6 +44,7 @@ async def on_message(message):
     say = lambda s: client.send_message(message.channel, s)
     if message.author == client.user: return
 
+    reveal = None
     if message.content.startswith('!start'):
         if game: return
         current = game = Game()
@@ -63,13 +64,28 @@ async def on_message(message):
             if game is not current: return
             mask[i] = game.answer[i]
 
-        await say("Time's up! The answer was **`%s`**." % game.pretty_tag)
-        game = None
+        reveal = "Time's up! The answer was **`%s`**." % game.pretty_tag
 
     elif game and normalize(message.content) in game.answers:
         answer = game.pretty_tag
+        reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
+
+    if reveal:
+        wiki_embed = None
+        try:
+            wiki_url = 'https://danbooru.donmai.us/wiki_pages/' + game.tag
+            r = requests.get(wiki_url)
+            for p in lxml.html.fromstring(r.content).xpath('//*[@id="wiki-page-body"]/p[not(@class)]'):
+                # Hack: skip over <p> tags without bare text.
+                bare_text = (p.text or '') + ''.join(c.tail or '' for c in p.iterchildren())
+                if not bare_text.strip(): continue
+                wiki_embed = discord.Embed(title=game.pretty_tag, description=p.text_content(), url=wiki_url)
+                break
+        except Exception as e:
+            print(e)
+
         game = None
-        await say('%s got it! The answer was **`%s`**.' % (message.author.display_name, answer))
+        await client.send_message(message.channel, reveal, embed=wiki_embed)
         await say('Type `!start` to play another game.')
 
 @client.event
