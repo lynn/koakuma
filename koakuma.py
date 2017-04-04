@@ -10,8 +10,9 @@ with open('aliases.json') as f: aliases = json.load(f)
 
 def normalize(s):
     # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
+    # normalize('shimakaze_(kantai_collection)_(cosplay)') == 'shimakaze'
     s = ' '.join(s.lower().replace('_', ' ').split())
-    return re.sub(r'\s*\([^)]+\)$', '', s)
+    return re.sub(r'(\s*\([^)]+\))*$', '', s)
 
 def tag_wiki_embed(tag):
     """Return a Discord Embed describing the given tag, or None."""
