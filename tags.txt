@@ -36,7 +36,6 @@ aa_megami-sama
 abs
 abstract
 absurdly_long_hair
-absurdres
 abukuma_(kantai_collection)
 accel_world
 accelerator
@@ -1878,7 +1877,6 @@ highleg_leotard
 highleg_panties
 highleg_swimsuit
 highlights
-highres
 highschool_of_the_dead
 higurashi_no_naku_koro_ni
 hiiragi_kagami
@@ -2039,7 +2037,6 @@ inazuma_eleven_go_galaxy
 incest
 incipient_kiss
 incoming_gift
-incredibly_absurdres
 index
 index_finger_raised
 indian_style
@@ -2103,7 +2100,6 @@ joseph_joestar
 joseph_joestar_(young)
 jougasaki_mika
 jougasaki_rika
-jpeg_artifacts
 juice_box
 juliet_sleeves
 jumping
@@ -2441,7 +2437,6 @@ low_wings
 lowleg
 lowleg_bikini
 lowleg_panties
-lowres
 lucky_star
 lum
 luna_child
@@ -2535,7 +2530,6 @@ mature
 mawaru_penguindrum
 maya_(kantai_collection)
 mcdonald's
-md5_mismatch
 me-tan
 meat
 mecha
@@ -3553,7 +3547,6 @@ sazanami_(kantai_collection)
 scabbard
 scales
 scan
-scan_artifacts
 scar
 scar_across_eye
 scared
@@ -4437,7 +4430,6 @@ unzan
 unzipped
 upper_body
 upright_straddle
-upscaled
 upside-down
 upskirt
 urakaze_(kantai_collection)
