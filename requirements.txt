@@ -1,3 +1,4 @@
-requests>=2
-lxml>=3
 discord.py>=0.16
+lxml>=3
+redis>=2
+requests>=2

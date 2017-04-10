@@ -1,9 +1,12 @@
-import asyncio, discord, json, lxml.html, random, os, re, requests, time
+import asyncio, discord, json, lxml.html, os, random, re, redis, requests, time
 
+REDIS_PORT = 6379
 ROOT = 'https://safebooru.donmai.us'
 NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
+
+ri = redis.StrictRedis(host='localhost', port=REDIS_PORT, db=0)
 
 with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
@@ -43,6 +46,7 @@ class Game:
             self.tag = random.choice(tags)
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
+            print(self.answer)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
             url = ROOT + '/posts.json?limit=%d&random=true&tags=%s -ugoira' % (NUM_IMAGES, self.tag)
             try:
@@ -68,7 +72,17 @@ async def on_message(message):
     if message.author == client.user: return
 
     reveal = None
-    if message.content.startswith('!start'):
+    if message.content.startswith('!scores') and message.server:
+        scores = ri.zrange('leaderboard', 0, -1, desc=True, withscores=True)
+        entries = []
+        for uid, score in scores:
+            member = message.server.get_member(uid.decode('utf-8'))
+            if member is None: continue
+            entries.append('%s (%d win%s)' % (member.display_name, score, '' if score == 1 else 's'))
+            if len(entries) >= 10: break
+        await say('**Leaderboard**\n' + '\n'.join('%d. %s' % t for t in enumerate(entries, 1)))
+
+    elif message.content.startswith('!start'):
         if game: return
         current = game = Game()
         await say("Find the common tag between these images:")
@@ -92,6 +106,7 @@ async def on_message(message):
     elif game and normalize(message.content) in game.answers:
         answer = game.pretty_tag
         reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
+        ri.zincrby('leaderboard', message.author.id, 1)
 
     if reveal:
         wiki_embed = tag_wiki_embed(game.tag)
