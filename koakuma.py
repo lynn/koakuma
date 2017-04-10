@@ -6,7 +6,7 @@ NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
 
-ri = redis.StrictRedis(host='localhost', port=REDIS_PORT, db=0)
+ri = redis.StrictRedis(host=os.getenv('REDIS_URL'), port=REDIS_PORT, db=0)
 
 with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
