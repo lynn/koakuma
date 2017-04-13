@@ -1042,7 +1042,6 @@ destruction
 detached_collar
 detached_sleeves
 detached_wings
-deviantart_sample
 devil_may_cry
 di_gi_charat
 diamond_(shape)
@@ -1096,7 +1095,6 @@ doujima_nanako
 doujin_cover
 doujinshi
 downblouse
-downscaled
 dowsing_rod
 dragon
 dragon's_crown
@@ -2011,7 +2009,6 @@ ikari_shinji
 ikazuchi_(kantai_collection)
 ikkitousen
 illyasviel_von_einzbern
-image_sample
 imagining
 imaizumi_kagerou
 imminent_sex
@@ -3134,7 +3131,6 @@ pixel_art
 pixiv
 pixiv_fantasia
 pixiv_fantasia_5
-pixiv_sample
 pizza
 plaid
 plaid_background
@@ -4381,7 +4377,6 @@ twin_drills
 twincest
 twins
 twintails
-twitter_sample
 twitter_username
 two-tone_background
 two-tone_hair
@@ -4652,7 +4647,6 @@ yamashiro_(kantai_collection)
 yamato-no-kami_yasusada
 yamato_(kantai_collection)
 yandere
-yandere_sample
 yang_xiao_long
 yaoi
 yasaka_kanako
