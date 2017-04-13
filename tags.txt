@@ -729,8 +729,6 @@ charlotte_dunois
 charlotte_e_yeager
 chart
 chasing
-check_commentary
-check_translation
 checkerboard_cookie
 checkered
 checkered_background
@@ -848,7 +846,6 @@ comb
 come_hither
 comic
 command_spell
-commentary
 company_connection
 company_name
 comparison
@@ -2460,7 +2457,6 @@ magatama
 magazine
 magazine_(weapon)
 magazine_cover
-magazine_scan
 magi_the_labyrinth_of_magic
 magic
 magic_circle
@@ -3026,7 +3022,6 @@ parted_bangs
 parted_lips
 partially_colored
 partially_submerged
-partially_translated
 partially_undressed
 partially_visible_vulva
 partly_fingerless_gloves
@@ -3542,7 +3537,6 @@ sayonara_zetsubou_sensei
 sazanami_(kantai_collection)
 scabbard
 scales
-scan
 scar
 scar_across_eye
 scared
@@ -3905,7 +3899,6 @@ spitroast
 spitting
 splashing
 splatoon
-spoilers
 spoken_blush
 spoken_ellipsis
 spoken_exclamation_mark
@@ -4350,7 +4343,6 @@ trigger_discipline
 tripping
 troll_face
 trumpet
-truth
 tsukihime
 tsukikage_yuri
 tsukino_usagi
