@@ -94,10 +94,12 @@ async def on_message(message):
         mask = list(re.sub(r'\w', '●', game.answer))
         indices = [i for i, c in enumerate(mask) if c == '●']
         random.shuffle(indices)
-        for i in indices:
-            await say('Hint: **`%s`**' % ''.join(mask))
-            await asyncio.sleep(TIME_BETWEEN_LETTERS)
-            if game is not current: return
+        for i, masked in zip(indices, range(len(indices), 0, -1)):
+            # Show letters faster if there are many masked ones left.
+            if masked < 15 or masked % 2 == 0:
+                await say('Hint: **`%s`**' % ''.join(mask))
+                await asyncio.sleep(TIME_BETWEEN_LETTERS)
+                if game is not current: return
             mask[i] = game.answer[i]
 
         reveal = "Time's up! The answer was **`%s`**." % game.pretty_tag
