@@ -3071,7 +3071,6 @@ phone
 photo
 photo_(object)
 photo_background
-photoshop
 piano
 picture_frame
 piercing
