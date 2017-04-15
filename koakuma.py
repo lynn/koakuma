@@ -107,7 +107,7 @@ async def on_message(message):
     elif game and normalize(message.content) in game.answers:
         answer = game.pretty_tag
         reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
-        ri.zincrby('leaderboard', message.author.id, 1)
+        if message.server: ri.zincrby('leaderboard', message.author.id, 1)
 
     if reveal:
         wiki_embed = tag_wiki_embed(game.tag)
