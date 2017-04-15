@@ -1031,7 +1031,6 @@ denim_shorts
 dennou_coil
 denpa_onna_to_seishun_otoko
 depth_of_field
-derivative_work
 desert
 desk
 dessert
@@ -1133,7 +1132,6 @@ duel_monster
 duffel_bag
 dungeon_and_fighter
 dungeon_ni_deai_wo_motomeru_no_wa_machigatteiru_darou_ka
-duplicate
 durarara!!
 dusk
 dust
@@ -3389,7 +3387,6 @@ remote_control
 rensouhou-chan
 rensouhou-kun
 resident_evil
-resized
 restrained
 revealing_clothes
 reverse_cowgirl_position
@@ -4447,7 +4444,6 @@ vampire
 vampire_(game)
 vanishing_point
 vase
-vector_trace
 vehicle
 veil
 veins
