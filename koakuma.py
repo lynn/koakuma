@@ -2,6 +2,7 @@ import asyncio, discord, json, lxml.html, os, random, re, redis, requests, time
 
 REDIS_PORT = 6379
 ROOT = 'https://safebooru.donmai.us'
+NSFW_ROOT = 'https://danbooru.donmai.us'
 NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
@@ -40,17 +41,17 @@ def tag_wiki_embed(tag):
         print(e)
 
 class Game:
-    def __init__(self):
+    def __init__(self, root, second_tag):
         print('Starting a new game...')
         while True:
             self.tag = random.choice(tags)
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
-            url = ROOT + '/posts.json?limit=%d&random=true&tags=%s -ugoira' % (NUM_IMAGES, self.tag)
+            url = root + '/posts.json?limit=%d&random=true&tags=%s %s' % (NUM_IMAGES, self.tag, second_tag)
             try:
                 js = requests.get(url).json()
-                self.urls = [ROOT + re.sub(r'__\w+__', '', j['large_file_url']) for j in js]
+                self.urls = [root + re.sub(r'__\w+__', '', j['large_file_url']) for j in js]
             except:
                 time.sleep(1)
                 continue
@@ -69,10 +70,12 @@ async def on_message(message):
     global game
     say = lambda s: client.send_message(message.channel, s)
     if message.author == client.user: return
+    if message.channel.name == 'feature-requests': return
+    table = message.channel.name.replace('games', 'leaderboard')
 
     reveal = None
     if message.content.startswith('!scores') and message.server:
-        scores = ri.zrange('leaderboard', 0, -1, desc=True, withscores=True)
+        scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
         entries = []
         for uid, score in scores:
             member = message.server.get_member(uid.decode('utf-8'))
@@ -83,7 +86,7 @@ async def on_message(message):
 
     elif message.content.startswith('!start'):
         if game: return
-        current = game = Game()
+        current = game = Game(NSFW_ROOT, '-rating:s') if 'nsfw' in message.channel.name else Game(ROOT, '-ugoira')
         await say("Find the common tag between these images:")
         for url in game.urls:
             await say(url)
@@ -107,7 +110,7 @@ async def on_message(message):
     elif game and normalize(message.content) in game.answers:
         answer = game.pretty_tag
         reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
-        if message.server: ri.zincrby('leaderboard', message.author.id, 1)
+        if message.server: ri.zincrby(table, message.author.id, 1)
 
     if reveal:
         wiki_embed = tag_wiki_embed(game.tag)
