@@ -15,7 +15,7 @@ with open('aliases.json') as f: aliases = json.load(f)
 def normalize(s):
     # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
     # normalize('shimakaze_(kantai_collection)_(cosplay)') == 'shimakaze'
-    s = ' '.join(s.lower().replace('_', ' ').split())
+    s = ' '.join(re.sub(r'[_-]', ' ', s.lower()).split())
     return re.sub(r'(\s*\([^)]+\))*$', '', s)
 
 def tag_wiki_embed(tag):
