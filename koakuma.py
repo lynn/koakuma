@@ -150,7 +150,7 @@ async def on_message(message):
         else:
             reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
             # Only award points if the user didn't come up with the tag themselves...
-            # if message.server: ri.zincrby(table, message.author.id, 1)
+            if message.server: ri.zincrby(table, message.author.id, 1)
         game_master = None
 
     if reveal:
