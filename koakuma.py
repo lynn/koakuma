@@ -45,7 +45,6 @@ class Game:
         print('Starting a new game...')
         while True:
             self.tag = manual_tag or random.choice(tags)
-            manual_tag = None
             self.pretty_tag = self.tag.replace('_', ' ')
             print('...trying tag "%s"' % self.tag)
             self.answer = normalize(self.tag)
@@ -66,8 +65,10 @@ class Game:
                             return
                 except:
                     print('Connection error. Retrying.')
-                time.sleep(1)
+                time.sleep(0.2)
             print('Ran out of tries, the given tag must not have many images...')
+            if manual_tag:
+                raise ValueError("Manual tag didn't give enough results!")
 
 game = None
 game_master = None
@@ -95,7 +96,6 @@ async def on_message(message):
     manual_tag = None
     if not game and game_master and message.author.id == game_master.id and message.channel.is_private:
         manual_tag = message.content
-        await game_say('A tag has been decided by %s!' % game_master.display_name)
 
     reveal = None
     if message.content.startswith('!scores') and message.server:
@@ -117,12 +117,20 @@ async def on_message(message):
 
     elif message.content.startswith('!start') or manual_tag:
         if game: return
-        if game_master:
-            if not manual_tag: return
-        else:
-            game_channel = message.channel
-        current = game = Game(NSFW_ROOT, '-rating:safe', manual_tag=manual_tag) if 'nsfw' in game_channel.name else Game(ROOT, '-ugoira', manual_tag=manual_tag)
+        if game_master and not manual_tag: return
+
+        game_channel = game_channel or message.channel
+
+        try:
+            current = game = Game(NSFW_ROOT, '-rating:safe', manual_tag=manual_tag) if 'nsfw' in game_channel.name else Game(ROOT, '-ugoira', manual_tag=manual_tag)
+        except ValueError:
+            await say("That tag doesn't give enough results, please try a different one!")
+            return
+
+        if manual_tag:
+            await game_say('A tag has been decided by %s!' % game_master.display_name)
         await game_say("Find the common tag between these images:")
+
         for url in game.urls:
             await game_say(url)
             await asyncio.sleep(TIME_BETWEEN_IMAGES)
@@ -140,7 +148,6 @@ async def on_message(message):
                 if game is not current: return
             mask[i] = game.answer[i]
 
-        game_master = None
         reveal = "Time's up! The answer was **`%s`**." % game.pretty_tag
 
     elif game and message.channel.id == game_channel.id and normalize(message.content) in game.answers:
@@ -155,9 +162,11 @@ async def on_message(message):
 
     if reveal:
         wiki_embed = tag_wiki_embed(game.tag)
-        game = None
         await client.send_message(game_channel, reveal, embed=wiki_embed)
         await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
+        game = None
+        game_master = None
+        game_channel = None
 
 @client.event
 async def on_message_edit(before, after):
