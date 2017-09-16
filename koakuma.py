@@ -41,37 +41,61 @@ def tag_wiki_embed(tag):
         print(e)
 
 class Game:
-    def __init__(self, root, second_tag):
+    def __init__(self, root, second_tag, manual_tag=None):
         print('Starting a new game...')
         while True:
-            self.tag = random.choice(tags)
+            self.tag = manual_tag or random.choice(tags)
             self.pretty_tag = self.tag.replace('_', ' ')
+            print('...trying tag "%s"' % self.tag)
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
             url = root + '/posts.json?limit=%d&random=true&tags=%s %s' % (NUM_IMAGES, self.tag, second_tag)
-            try:
-                js = requests.get(url).json()
-                self.urls = [root + re.sub(r'__\w+__', '', j['large_file_url']) for j in js]
-            except:
-                time.sleep(1)
-                continue
-            if len(self.urls) == NUM_IMAGES:
-                break
+            # Try a couple of times to gather (NUM_IMAGES) unique images
+            retries = 10
+            items = []
+            while retries and len(items) < NUM_IMAGES:
+                retries -= 1
+                try:
+                    js = requests.get(url).json()
+                    for j in js:
+                        if 'large_file_url' in j and j['id'] not in [item['id'] for item in items]:
+                            items.append(j)
+                        if len(items) == NUM_IMAGES:
+                            self.urls = [root + re.sub(r'__\w+__', '', item['large_file_url']) for item in items]
+                            return
+                except:
+                    print('Connection error. Retrying.')
+                time.sleep(0.2)
+            print('Ran out of tries, the given tag must not have many images...')
+            if manual_tag:
+                raise ValueError("Manual tag didn't give enough results!")
 
 game = None
+game_master = None
+game_channel = None
 client = discord.Client()
 
 @client.event
 async def on_ready():
     print('Ready; loaded %d tags.' % len(tags))
 
+async def game_say(s):
+    await client.send_message(game_channel, s)
+
 @client.event
 async def on_message(message):
     global game
+    global game_master
+    global game_channel
     say = lambda s: client.send_message(message.channel, s)
     if message.author == client.user: return
     if message.channel.name == 'feature-requests': return
-    table = message.channel.name.replace('games', 'leaderboard')
+    if message.server:
+        table = message.channel.name.replace('games', 'leaderboard')
+
+    manual_tag = None
+    if not game and game_master and message.author.id == game_master.id and message.channel.is_private:
+        manual_tag = message.content
 
     reveal = None
     if message.content.startswith('!scores') and message.server:
@@ -84,12 +108,31 @@ async def on_message(message):
             if len(entries) >= 10: break
         await say('**Leaderboard**\n' + '\n'.join('%d. %s' % t for t in enumerate(entries, 1)))
 
-    elif message.content.startswith('!start'):
+    elif message.content.startswith('!manual'):
         if game: return
-        current = game = Game(NSFW_ROOT, '-rating:s') if 'nsfw' in message.channel.name else Game(ROOT, '-ugoira')
-        await say("Find the common tag between these images:")
+        game_channel = message.channel
+        game_master = message.author
+        await game_say("Waiting for %s to send me a tag..." % message.author.display_name)
+        await client.send_message(game_master, 'Please give your tag.')
+
+    elif message.content.startswith('!start') or manual_tag:
+        if game: return
+        if game_master and not manual_tag: return
+
+        game_channel = game_channel or message.channel
+
+        try:
+            current = game = Game(NSFW_ROOT, '-rating:safe', manual_tag=manual_tag) if 'nsfw' in game_channel.name else Game(ROOT, '-ugoira', manual_tag=manual_tag)
+        except ValueError:
+            await say("That tag doesn't give enough results, please try a different one!")
+            return
+
+        if manual_tag:
+            await game_say('A tag has been decided by %s!' % game_master.display_name)
+        await game_say("Find the common tag between these images:")
+
         for url in game.urls:
-            await say(url)
+            await game_say(url)
             await asyncio.sleep(TIME_BETWEEN_IMAGES)
             if game is not current: return
 
@@ -100,23 +143,30 @@ async def on_message(message):
         for i, masked in zip(indices, range(len(indices), 0, -1)):
             # Show letters faster if there are many masked ones left.
             if masked < 15 or masked % 2 == 0:
-                await say('Hint: **`%s`**' % ''.join(mask))
+                await game_say('Hint: **`%s`**' % ''.join(mask))
                 await asyncio.sleep(TIME_BETWEEN_LETTERS)
                 if game is not current: return
             mask[i] = game.answer[i]
 
         reveal = "Time's up! The answer was **`%s`**." % game.pretty_tag
 
-    elif game and normalize(message.content) in game.answers:
+    elif game and message.channel.id == game_channel.id and normalize(message.content) in game.answers:
         answer = game.pretty_tag
-        reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
-        if message.server: ri.zincrby(table, message.author.id, 1)
+        if game_master and game_master.id == message.author.id:
+            reveal = '%s gave it away! The answer was **`%s`**!' % (message.author.display_name, answer)
+        else:
+            reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
+            # Only award points if the user didn't come up with the tag themselves...
+            if message.server: ri.zincrby(table, message.author.id, 1)
+        game_master = None
 
     if reveal:
         wiki_embed = tag_wiki_embed(game.tag)
+        await client.send_message(game_channel, reveal, embed=wiki_embed)
+        await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
         game = None
-        await client.send_message(message.channel, reveal, embed=wiki_embed)
-        await say('Type `!start` to play another game.')
+        game_master = None
+        game_channel = None
 
 @client.event
 async def on_message_edit(before, after):
