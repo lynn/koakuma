@@ -123,7 +123,6 @@ async def on_message(message):
 
         try:
             current = game = Game(NSFW_ROOT, '-rating:safe', manual_tag=manual_tag) if 'nsfw' in game_channel.name else Game(ROOT, '-ugoira', manual_tag=manual_tag)
-            await say("Started a game with tag \"{}\"".format(manual_tag))
         except ValueError:
             await say("That tag doesn't give enough results, please try a different one!")
             return
