@@ -1,4 +1,4 @@
-import asyncio, discord, json, lxml.html, os, random, re, redis, requests, time
+import asyncio, discord, json, lxml.html, os, random, re, redis, requests, time, urllib.parse
 
 REDIS_PORT = 6379
 ROOT = 'https://safebooru.donmai.us'
@@ -61,7 +61,9 @@ class Game:
                         if 'large_file_url' in j and j['id'] not in [item['id'] for item in items]:
                             items.append(j)
                         if len(items) == NUM_IMAGES:
-                            self.urls = [root + re.sub(r'__\w+__', '', item['large_file_url']) for item in items]
+                            # The URL looks like: /data/sample/__some_tags_here__sample-d5aefcdbc9db6f56ce504915f2128e2a.jpg
+                            # We strip the __\w+__ part as it might give away the answer.
+                            self.urls = [urllib.parse.urljoin(root, re.sub(r'__\w+__', '', item['large_file_url'])) for item in items]
                             return
                 except:
                     print('Connection error. Retrying.')
@@ -123,6 +125,7 @@ async def on_message(message):
 
         try:
             current = game = Game(NSFW_ROOT, '-rating:safe', manual_tag=manual_tag) if 'nsfw' in game_channel.name else Game(ROOT, '-ugoira', manual_tag=manual_tag)
+            if manual_tag: await say("Started a game with tag \"{}\"".format(manual_tag))
         except ValueError:
             await say("That tag doesn't give enough results, please try a different one!")
             return
