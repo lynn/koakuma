@@ -16,7 +16,7 @@ Store a bot client token in the environment variable `KOAKUMA_TOKEN`, then `pyth
 * Type tags in the channel to guess the answer!
 
 ## Is this SFW?
-By default, Koakuma only serves images from `safebooru.donmai.us`, but its standards for `safe` may misalign with your boss's. You should expect scantily-clad babes, but nothing downright explicit.
+By default, Koakuma only serves images from `safebooru.donmai.us` — but that site’s standard for `safe` *probably* misaligns with that of your workplace. You can expect scantily-clad anime babes, but nothing downright explicit.
 
 ## Why Koakuma?
 Well, she fetches stuff from libraries.
