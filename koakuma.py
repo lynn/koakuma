@@ -12,6 +12,8 @@ ri = redis.StrictRedis.from_url(os.getenv('REDIS_URL'))
 with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
 
+nokc_tags = [t for t in tags if 'kantai_collection' not in t]
+
 def normalize(s):
     # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
     # normalize('shimakaze_(kantai_collection)_(cosplay)') == 'shimakaze'
@@ -42,10 +44,10 @@ def tag_wiki_embed(tag):
         print(e)
 
 class Game:
-    def __init__(self, root, second_tag, manual_tag=None):
+    def __init__(self, root, second_tag, manual_tag=None, no_kc=False):
         print('Starting a new game...')
         while True:
-            self.tag = manual_tag or random.choice(tags)
+            self.tag = manual_tag or random.choice(nokc_tags if no_kc else tags)
             self.pretty_tag = self.tag.replace('_', ' ')
             print('...trying tag "%s"' % self.tag)
             self.answer = normalize(self.tag)
@@ -125,7 +127,8 @@ async def on_message(message):
         game_channel = game_channel or message.channel
 
         try:
-            current = game = Game(NSFW_ROOT, '-rating:safe', manual_tag=manual_tag) if 'nsfw' in game_channel.name else Game(ROOT, '-ugoira', manual_tag=manual_tag)
+            no_kc = 'nokc' in message.content
+            current = game = Game(ROOT, '-ugoira', manual_tag=manual_tag, no_kc=no_kc)
             if manual_tag: await say("Started a game with tag \"{}\"".format(manual_tag))
         except ValueError:
             await say("That tag doesn't give enough results, please try a different one!")
@@ -168,6 +171,8 @@ async def on_message(message):
         wiki_embed = tag_wiki_embed(game.tag)
         await client.send_message(game_channel, reveal, embed=wiki_embed)
         await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
+        if 'kantai_collection' in game.tag:
+            await game_say('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
         game = None
         game_master = None
         game_channel = None
