@@ -30,47 +30,51 @@ bad_tags = [codecs.decode(tag, 'rot_13') for tag in [
     'ybyv',
 ]]
 
-tag_aliases = defaultdict(list)
+def fetch_aliases():
+    tag_aliases = defaultdict(list)
 
-for i in range(1, 21):
-    print('Fetching page {} of aliases...'.format(i), file=sys.stderr)
-    url = TAG_ALIASES_PAGE_URL.format(i)
-    page = requests.get(url, headers={'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36"}).json()
-    if not page: break
-    for alias_data in page:
-        antecedent = alias_data['antecedent_name']
-        consequent = alias_data['consequent_name']
-        status = alias_data['status']
-        if status != 'active': continue
-        tag_aliases[consequent].append(antecedent)
+    for i in range(1, 21):
+        print('Fetching page {} of aliases...'.format(i), file=sys.stderr)
+        url = TAG_ALIASES_PAGE_URL.format(i)
+        page = requests.get(url).json()
+        if not page: break
+        for alias_data in page:
+            antecedent = alias_data['antecedent_name']
+            consequent = alias_data['consequent_name']
+            status = alias_data['status']
+            if status != 'active': continue
+            tag_aliases[consequent].append(antecedent)
 
-print('Writing aliases.json.')
-with open('aliases.json', 'w') as f:
-    json.dump(tag_aliases, f)
+    print('Writing aliases.json.', file=sys.stderr)
+    with open('aliases.json', 'w') as f:
+        json.dump(tag_aliases, f)
 
-tags = []
+def fetch_tags():
+    tags = []
 
-for i in range(1, PAGES + 1):
-    print('Fetching page {} of tags...'.format(i), file=sys.stderr)
-    url = TAGS_PAGE_URL.format(i)
-    for tag_data in requests.get(url, headers={'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36"}).json():
-        tag_name = tag_data['name']
-        tag_category = tag_data['category']
+    for i in range(1, PAGES + 1):
+        print('Fetching page {} of tags...'.format(i), file=sys.stderr)
+        url = TAGS_PAGE_URL.format(i)
+        for tag_data in requests.get(url).json():
+            tag_name = tag_data['name']
+            tag_category = tag_data['category']
 
-        if i <= 4:
-            allowed = [GENERAL, COPYRIGHT, CHARACTER]
-        else:
-            allowed = [GENERAL]
+            if i <= 4:
+                allowed = [GENERAL, COPYRIGHT, CHARACTER]
+            else:
+                allowed = [GENERAL]
 
-        wordish = alphanumeric_count(tag_name) >= 3
-        decent = tag_name not in bad_tags
-        relevant = tag_category in allowed
+            wordish = alphanumeric_count(tag_name) >= 3
+            decent = tag_name not in bad_tags
+            relevant = tag_category in allowed
 
-        if wordish and decent and relevant:
-            # if i == 7 and tag_category == GENERAL: print(tag_name)
-            tags.append(tag_name)
+            if wordish and decent and relevant:
+                # if i == 7 and tag_category == GENERAL: print(tag_name)
+                tags.append(tag_name)
 
-print('Writing tags.txt.')
-with open('tags.txt', 'w') as f:
-    f.write('\n'.join(sorted(tags)) + '\n')
+    print('Writing tags.txt.', file=sys.stderr)
+    with open('tags.txt', 'w') as f:
+        f.write('\n'.join(sorted(tags)) + '\n')
 
+fetch_tags()
+fetch_aliases()
