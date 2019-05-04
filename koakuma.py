@@ -166,7 +166,7 @@ async def on_message(message):
             # Only award points if the user didn't come up with the tag themselves...
             if message.server:
                 print('before', ri.zscore(table, message.author.id))
-                ri.zincrby(table, message.author.id, 1)
+                ri.zincrby(table, 1, message.author.id)
                 print('after', ri.zscore(table, message.author.id))
         game_master = None
 
