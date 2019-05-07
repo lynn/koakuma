@@ -2,10 +2,10 @@ import asyncio, discord, json, lxml.html, os, random, re, redis, requests, time,
 
 REDIS_PORT = 6379
 ROOT = 'https://safebooru.donmai.us'
-NSFW_ROOT = 'https://danbooru.donmai.us'
 NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
+GAME_CHANNELS = ['games']
 
 ri = redis.StrictRedis.from_url(os.getenv('REDIS_URL'))
 
@@ -94,9 +94,8 @@ async def on_message(message):
     global game_channel
     say = lambda s: client.send_message(message.channel, s)
     if message.author == client.user: return
-    if message.channel.name == 'feature-requests': return
-    if message.server:
-        table = message.channel.name.replace('games', 'leaderboard')
+    if message.channel.name not in GAME_CHANNELS: return
+    if message.server: table = 'leaderboard'
 
     manual_tag = None
     if not game and game_master and message.author.id == game_master.id and message.channel.is_private:
@@ -163,11 +162,8 @@ async def on_message(message):
             reveal = '%s gave it away! The answer was **`%s`**!' % (message.author.display_name, answer)
         else:
             reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
-            # Only award points if the user didn't come up with the tag themselves...
             if message.server:
-                print('before', ri.zscore(table, message.author.id))
                 ri.zincrby(table, 1, message.author.id)
-                print('after', ri.zscore(table, message.author.id))
         game_master = None
 
     if reveal:
