@@ -3,9 +3,6 @@ Discord bot for a Danbooru tag-guessing game. [**Play it here!**](https://discor
 
 ![screenshot](screenshot.png)
 
-## Usage
-Store a bot client token in the environment variable `KOAKUMA_TOKEN`, then `python3 koakuma.py` to run the bot.
-
 ## Gameplay
 * Type `!start` to begin the game.
 
@@ -20,3 +17,6 @@ By default, Koakuma only serves images from `safebooru.donmai.us` — but that s
 
 ## Why Koakuma?
 Well, she fetches stuff from libraries.
+
+## Running Koakuma on your server
+Store a bot client token in the environment variable `KOAKUMA_TOKEN`, then `python3 koakuma.py` to run the bot.
