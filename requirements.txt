@@ -1,4 +1,4 @@
-discord.py>=0.16
+discord.py>=1.4.1
 lxml>=3
 redis>=2
 requests>=2

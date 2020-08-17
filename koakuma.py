@@ -85,28 +85,28 @@ async def on_ready():
     print('Ready; loaded %d tags.' % len(tags))
 
 async def game_say(s):
-    await client.send_message(game_channel, s)
+    await game_channel.send(s)
 
 @client.event
 async def on_message(message):
     global game
     global game_master
     global game_channel
-    say = lambda s: client.send_message(message.channel, s)
+    say = lambda s: message.channel.send(s)
     if message.author == client.user: return
     if message.channel.name not in GAME_CHANNELS: return
-    if message.server: table = 'leaderboard'
+    if message.guild: table = 'leaderboard'
 
     manual_tag = None
     if not game and game_master and message.author.id == game_master.id and message.channel.is_private:
         manual_tag = re.sub('\s+', '_', message.content)
 
     reveal = None
-    if message.content.startswith('!scores') and message.server:
+    if message.content.startswith('!scores') and message.guild:
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
         entries = []
         for uid, score in scores:
-            member = message.server.get_member(uid.decode('utf-8'))
+            member = message.guild.get_member(uid.decode('utf-8'))
             if member is None: continue
             entries.append('%s (%d win%s)' % (member.display_name, score, '' if score == 1 else 's'))
             if len(entries) >= 10: break
@@ -117,7 +117,7 @@ async def on_message(message):
         game_channel = message.channel
         game_master = message.author
         await game_say("Waiting for %s to send me a tag..." % message.author.display_name)
-        await client.send_message(game_master, 'Please give your tag.')
+        await game_master.send('Please give your tag.')
 
     elif message.content.startswith('!start') or manual_tag:
         if game: return
@@ -162,13 +162,13 @@ async def on_message(message):
             reveal = '%s gave it away! The answer was **`%s`**!' % (message.author.display_name, answer)
         else:
             reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
-            if message.server:
+            if message.guild:
                 ri.zincrby(table, 1, message.author.id)
         game_master = None
 
     if reveal:
         wiki_embed = tag_wiki_embed(game.tag)
-        await client.send_message(game_channel, reveal, embed=wiki_embed)
+        await game_channel.send(reveal, embed=wiki_embed)
         await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
         if 'kantai_collection' in game.tag:
             await game_say('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
