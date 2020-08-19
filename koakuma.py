@@ -34,7 +34,7 @@ def tag_wiki_embed(tag):
             # text_content() changes 'a<br>b' into 'ab', so fix newlines:
             for br in p.xpath('//br'):
                 br.tail = '\n' + (br.tail or '')
-            has_latin = lambda s: s and re.match(r'[a-zA-Z]', s)
+            has_latin = lambda s: s and re.search(r'[a-zA-Z]', s)
             if has_latin(p.text) or any(has_latin(c.tail) for c in p.iterchildren()):
                 # Gotcha! Now strip parentheticals; they're mostly just Japanese names.
                 stripped = re.sub(r'\s*\([^)]*\)', '', p.text_content())
@@ -180,4 +180,5 @@ async def on_message(message):
 async def on_message_edit(before, after):
     await on_message(after)
 
-client.run(os.getenv('KOAKUMA_TOKEN'))
+if __name__ == '__main__':
+    client.run(os.getenv('KOAKUMA_TOKEN'))
