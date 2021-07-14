@@ -78,7 +78,9 @@ class Game:
 game = None
 game_master = None
 game_channel = None
-client = discord.Client()
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
@@ -106,7 +108,7 @@ async def on_message(message):
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
         entries = []
         for uid, score in scores:
-            member = message.guild.get_member(uid.decode('utf-8'))
+            member = message.guild.get_member(int(uid.decode('utf-8')))
             if member is None: continue
             entries.append('%s (%d win%s)' % (member.display_name, score, '' if score == 1 else 's'))
             if len(entries) >= 10: break
