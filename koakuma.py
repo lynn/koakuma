@@ -12,7 +12,7 @@ ri = redis.StrictRedis.from_url(os.getenv('REDIS_URL'))
 with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
 
-nokc_tags = [t for t in tags if 'kantai_collection' not in t]
+nokc_tags = [t for t in tags if 'kantai_collection' not in t and 'kancolle' not in t]
 
 def normalize(s):
     # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
@@ -170,7 +170,7 @@ async def on_message(message):
         wiki_embed = tag_wiki_embed(game.tag)
         await game_channel.send(reveal, embed=wiki_embed)
         await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
-        if 'kantai_collection' in game.tag:
+        if 'kantai_collection' in game.tag or 'kancolle' in game.tag:
             await game_say('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
         game = None
         game_master = None
