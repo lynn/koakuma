@@ -18,7 +18,7 @@ def normalize(s):
     # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
     # normalize('shimakaze_(kantai_collection)_(cosplay)') == 'shimakaze'
     # Also turn fancy quotes into ASCII ones.
-    s = ' '.join(re.sub(r'[_-]', ' ', s.lower()).split())
+    s = ' '.join(re.sub(r'[_]', ' ', s.lower()).split())
     return re.sub(r'[‘’]', "'", re.sub(r'[“”]', '"', re.sub(r'(\s*\([^)]+\))*$', '', s)))
 
 def tag_wiki_embed(tag):
@@ -96,11 +96,11 @@ async def on_message(message):
     global game_channel
     say = lambda s: message.channel.send(s)
     if message.author == client.user: return
-    if message.channel.name not in GAME_CHANNELS: return
+    if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS: return
     if message.guild: table = 'leaderboard'
 
     manual_tag = None
-    if not game and game_master and message.author.id == game_master.id and message.channel.is_private:
+    if not game and game_master and message.author.id == game_master.id and isinstance(message.channel, discord.abc.PrivateChannel):
         manual_tag = re.sub('\s+', '_', message.content)
 
     reveal = None
