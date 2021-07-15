@@ -3374,7 +3374,6 @@ on_table
 on_vehicle
 onbashira
 one-eyed
-one-hour_drawing_challenge
 one-piece_swimsuit
 one-piece_tan
 one-punch_man
