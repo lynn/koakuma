@@ -20,3 +20,5 @@ Well, she fetches stuff from libraries.
 
 ## Running Koakuma on your server
 Store a bot client token in the environment variable `KOAKUMA_TOKEN`, then `python3 koakuma.py` to run the bot.
+
+For leaderboard support (`!scores`), either supply a `REDIS_URL`, or um, snip out all references to that stuff from the code.
