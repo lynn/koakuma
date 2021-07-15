@@ -1,12 +1,13 @@
 from collections import defaultdict
 import codecs, requests
 import sys
+import re
 import json
 
 TAGS_PAGE_URL = 'https://danbooru.donmai.us/tags.json?limit=1000&search[order]=count&page={}'
 TAG_ALIASES_PAGE_URL = 'https://danbooru.donmai.us/tag_aliases.json?limit=1000&page={}'
 
-PAGES = 7  # 7000 tags
+PAGES = 9  # 9000 tags
 
 GENERAL = 0
 ARTIST = 1
@@ -17,18 +18,11 @@ META = 5
 def alphanumeric_count(string):
     return sum(1 for c in string if c.isalnum())
 
-bad_tags = [codecs.decode(tag, 'rot_13') for tag in [
-    'anmv',
-    'encr',
-    'gehgu',
-    'htbven',
-    'lbh_tbaan_trg_encrq',
-    'qbhwvafuv',
-    'qenjsnt',
-    'shgnanev',
-    'vzzvarag_encr',
-    'ybyv',
-]]
+def is_bad(tag):
+    return re.search(codecs.decode(
+        r"(_|^)(anmv|encrq?|gehgu|htbven|qbhwvafuv|qenjsnt|shgn(anev)?|unaqwbo|pbaqbzf?"
+        r"|ybyv|nohfr|elban|cravf(rf)?|intvany?|nany|frk|(cer)?phz(fubg)?|crargengvba|chffl"
+        r"|bar-ubhe_qenjvat_punyyratr|^bevtvany$)(_|$)", "rot_13"), tag)
 
 def fetch_aliases():
     tag_aliases = defaultdict(list)
@@ -65,7 +59,7 @@ def fetch_tags():
                 allowed = [GENERAL]
 
             wordish = alphanumeric_count(tag_name) >= 3
-            decent = tag_name not in bad_tags
+            decent = not is_bad(tag_name)
             relevant = tag_category in allowed
 
             if wordish and decent and relevant:
@@ -77,4 +71,4 @@ def fetch_tags():
         f.write('\n'.join(sorted(tags)) + '\n')
 
 fetch_tags()
-fetch_aliases()
+#fetch_aliases()
