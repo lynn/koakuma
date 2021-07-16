@@ -12,7 +12,10 @@ ri = redis.StrictRedis.from_url(os.getenv('REDIS_URL'))
 with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
 
-nokc_tags = [t for t in tags if 'kantai_collection' not in t and 'kancolle' not in t]
+random.shuffle(tags)
+
+def is_kancolle(tag):
+    return 'kantai_collection' in tag or 'kancolle' in tag
 
 def normalize(s):
     # normalize('alice_margatroid_(pc-98)') == normalize(' Alice  Margatroid\n') == 'alice margatroid'
@@ -44,12 +47,19 @@ def tag_wiki_embed(tag):
         print(e)
 
 class Game:
+    tag_index = 0
     def __init__(self, root, second_tag, manual_tag=None, no_kc=False):
         print('Starting a new game...')
         while True:
-            self.tag = manual_tag or random.choice(nokc_tags if no_kc else tags)
+            if manual_tag:
+                self.tag = manual_tag
+            else:
+                self.tag = tags[Game.tag_index]
+                Game.tag_index = (Game.tag_index + 1) % len(tags)
+                if is_kancolle(self.tag) and no_kc: continue
+                if Game.tag_index == 0: random.shuffle(tags)
+
             self.pretty_tag = self.tag.replace('_', ' ')
-            print('...trying tag "%s"' % self.tag)
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
             url = root + '/posts.json?limit=%d&random=true&tags=%s %s' % (NUM_IMAGES, self.tag, second_tag)
@@ -174,7 +184,7 @@ async def on_message(message):
         wiki_embed = tag_wiki_embed(game.tag)
         await game_channel.send(reveal, embed=wiki_embed)
         await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
-        if 'kantai_collection' in game.tag or 'kancolle' in game.tag:
+        if is_kancolle(game.tag):
             await game_say('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
         game = None
         game_master = None
