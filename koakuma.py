@@ -1,13 +1,16 @@
-import asyncio, discord, json, lxml.html, os, random, re, redis, requests, time, urllib.parse
+import asyncio, discord, json, lxml.html, os, random, re, requests, time, urllib.parse
 
-REDIS_PORT = 6379
 ROOT = 'https://safebooru.donmai.us'
 NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
 GAME_CHANNELS = ['games']
 
-ri = redis.StrictRedis.from_url(os.getenv('REDIS_URL'))
+redis_url = os.getenv('KOAKUMA_REDIS_URL').strip()
+ri = None
+if redis_url:
+    import redis
+    ri = redis.StrictRedis.from_url(redis_url)
 
 with open('tags.txt') as f: tags = f.read().strip().split('\n')
 with open('aliases.json') as f: aliases = json.load(f)
@@ -119,7 +122,7 @@ async def on_message(message):
         manual_tag = re.sub('\s+', '_', message.content)
 
     reveal = None
-    if message.content.startswith('!scores') and message.guild:
+    if ri and message.content.startswith('!scores') and message.guild:
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
         entries = []
         for uid, score in scores:
@@ -181,7 +184,7 @@ async def on_message(message):
             reveal = '%s gave it away! The answer was **`%s`**!' % (message.author.display_name, answer)
         else:
             reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
-            if message.guild:
+            if ri and message.guild:
                 ri.zincrby(table, 1, message.author.id)
         game_master = None
 
