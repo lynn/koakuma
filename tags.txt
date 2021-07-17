@@ -1266,10 +1266,6 @@ completely_nude
 computer
 concept_art
 condensation_trail
-condom
-condom_in_mouth
-condom_packet_strip
-condom_wrapper
 confession
 confetti
 confused
@@ -1320,7 +1316,6 @@ covered_nipples
 covering
 covering_ass
 covering_breasts
-covering_crotch
 covering_eyes
 covering_face
 covering_mouth
@@ -1387,13 +1382,6 @@ crossed_bangs
 crossed_legs
 crossover
 crosswalk
-crotch
-crotch_plate
-crotch_rope
-crotch_rub
-crotch_seam
-crotchless
-crotchless_panties
 crow
 crowd
 crown
@@ -1473,11 +1461,9 @@ dawn_(pokemon)
 day
 dc_comics
 dead_or_alive
-death
 debris
 debt
 decepticon
-deep_penetration
 deep_skin
 deepthroat
 deer
@@ -1571,8 +1557,6 @@ double-breasted
 double_\m/
 double_bun
 double_dildo
-double_handjob
-double_penetration
 double_v
 double_vertical_stripe
 doughnut
@@ -1716,8 +1700,6 @@ envelope
 epaulettes
 eraser
 erect_clitoris
-erection
-erection_under_clothes
 ereshkigal_(fate)
 erica_hartmann
 eromanga
@@ -1731,6 +1713,7 @@ evening_gown
 everyone
 evil_grin
 evil_smile
+evolutionary_line
 ex-keine
 excalibur_(fate/stay_night)
 excalibur_morgan_(fate)
@@ -1905,7 +1888,6 @@ fire_emblem:_three_houses
 fire_emblem_awakening
 fire_emblem_fates
 fire_emblem_heroes
-firearm
 fireflies
 fireplace
 fireworks
@@ -2112,10 +2094,6 @@ furry_with_non-furry
 furude_rika
 fusion
 fusou_(kancolle)
-futa_on_male
-futa_with_female
-futa_with_futa
-futa_with_male
 futaba_anzu
 futami_mami
 futasub
@@ -2198,7 +2176,6 @@ globe
 glomp
 gloom_(expression)
 gloria_(pokemon)
-gloved_handjob
 gloves
 gloves_removed
 glowing
@@ -2299,6 +2276,7 @@ grenade
 grey-framed_eyewear
 grey_background
 grey_bikini
+grey_border
 grey_bow
 grey_bra
 grey_cardigan
@@ -2343,7 +2321,6 @@ ground_vehicle
 group_name
 group_picture
 guided_breast_grab
-guided_penetration
 guilty_gear
 guilty_gear_xrd
 guitar
@@ -2499,7 +2476,6 @@ handbag
 handcuffs
 handgun
 handheld_game_console
-handjob
 handkerchief
 hands
 hands_clasped
@@ -2711,7 +2687,6 @@ holding_chopsticks
 holding_cigarette
 holding_clipboard
 holding_clothes
-holding_condom
 holding_controller
 holding_cup
 holding_dagger
@@ -2895,7 +2870,6 @@ illyasviel_von_einzbern
 imagining
 imaizumi_kagerou
 imminent_kiss
-imminent_penetration
 imp
 impaled
 imperial_japanese_army
@@ -2949,7 +2923,6 @@ instrument
 instrument_case
 interface_headset
 interlocked_fingers
-internal_cumshot
 interracial
 interspecies
 intravenous_drip
@@ -3083,7 +3056,6 @@ kikuchi_makoto
 kill_la_kill
 kimetsu_no_yaiba
 kimono
-kimono_lift
 kimono_pull
 kimono_skirt
 kindergarten_uniform
@@ -3717,7 +3689,6 @@ multiple_belts
 multiple_bows
 multiple_boys
 multiple_braids
-multiple_condoms
 multiple_crossover
 multiple_earrings
 multiple_fellatio
@@ -3727,7 +3698,6 @@ multiple_horns
 multiple_monochrome
 multiple_others
 multiple_paizuri
-multiple_penises
 multiple_persona
 multiple_riders
 multiple_rings
@@ -3890,7 +3860,6 @@ noh_mask
 non-human_admiral_(kancolle)
 nontraditional_miko
 noodles
-noose
 northern_ocean_princess
 nose
 nose_blush
@@ -3911,7 +3880,6 @@ numbers_(nanoha)
 nun
 nurse
 nurse_cap
-nursing_handjob
 o-ring
 o-ring_bikini
 o-ring_bottom
@@ -4063,7 +4031,6 @@ ore_no_imouto_ga_konna_ni_kawaii_wake_ga_nai
 orgasm
 orgy
 origami
-original
 oripathy_lesion_(arknights)
 os-tan
 oshino_shinobu
@@ -4215,7 +4182,6 @@ pencil_skirt
 pendant
 penguin
 penguin_hood
-penises_touching
 pennant
 pentacle
 pentagram
@@ -4386,7 +4352,6 @@ pointing_at_self
 pointing_at_viewer
 pointing_up
 pointless_censoring
-pointless_condom
 pointy_ears
 pointy_footwear
 pointy_hair
@@ -4467,7 +4432,6 @@ pouring
 pout
 pouty_lips
 pov
-pov_crotch
 pov_hands
 power_armor
 power_lines
@@ -4477,7 +4441,6 @@ pravda_military_uniform
 pravda_school_uniform
 prayer_beads
 praying
-precum
 precure
 pregnant
 prehensile_hair
@@ -5955,7 +5918,6 @@ tricorne
 trident
 triforce
 trigger_discipline
-triple_penetration
 tripping
 troll_face
 tropical_drink
@@ -6083,7 +6045,6 @@ urethral_insertion
 usada_pekora
 usami_renko
 usami_sumireko
-used_condom
 used_tissue
 ushanka
 ushio_(kancolle)
@@ -6105,7 +6066,6 @@ valkyrie
 vambraces
 vampire
 vampire_(game)
-vampire_costume
 vanishing_point
 variations
 vase

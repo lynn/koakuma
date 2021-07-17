@@ -22,6 +22,7 @@ def is_bad(tag):
     return re.search(codecs.decode(
         r"(_|^)(anmv|encrq?|gehgu|htbven|qbhwvafuv|qenjsnt|shgn(anev)?|unaqwbo|pbaqbzf?"
         r"|ybyv|nohfr|elban|cravf(rf)?|intvany?|nany|frk|(cer)?phz(fubg)?|crargengvba|chffl"
+        r"|abbfr|rerpgvba|pebgpu(yrff)?|qrngu"
         r"|bar-ubhe_qenjvat_punyyratr|^bevtvany$)(_|$)", "rot_13"), tag)
 
 def fetch_aliases():
