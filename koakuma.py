@@ -24,6 +24,11 @@ def normalize(s):
     s = ' '.join(re.sub(r'[_]', ' ', s.lower()).split())
     return re.sub(r'[‘’]', "'", re.sub(r'[“”]', '"', re.sub(r'(\s*\([^)]+\))*$', '', s)))
 
+def alnums(s):
+    # Return only the alphanumeric characters of a string.
+    # This is used to compare guesses and answers, so that "catgirl" == "cat-girl" == "cat girl" == "catgirl?".
+    return ''.join(c for c in s if c.isalnum())
+
 def tag_wiki_embed(tag):
     """Return a Discord Embed describing the given tag, or None."""
     wiki_url = ROOT + '/wiki_pages/' + tag
@@ -170,7 +175,7 @@ async def on_message(message):
 
         reveal = "Time's up! The answer was **`%s`**." % game.pretty_tag
 
-    elif game and message.channel.id == game_channel.id and normalize(message.content) in game.answers:
+    elif game and message.channel.id == game_channel.id and alnums(normalize(message.content)) in map(alnums, game.answers):
         answer = game.pretty_tag
         if game_master and game_master.id == message.author.id:
             reveal = '%s gave it away! The answer was **`%s`**!' % (message.author.display_name, answer)
