@@ -6,7 +6,7 @@ TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
 GAME_CHANNELS = ['games']
 
-redis_url = os.getenv('KOAKUMA_REDIS_URL').strip()
+redis_url = os.getenv('KOAKUMA_REDIS_URL')
 ri = None
 if redis_url:
     import redis
