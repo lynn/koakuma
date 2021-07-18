@@ -5,6 +5,7 @@ NUM_IMAGES = 9
 TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
 GAME_CHANNELS = ['games']
+TOP_N = 10
 
 redis_url = os.getenv('KOAKUMA_REDIS_URL')
 ri = None
@@ -124,20 +125,31 @@ async def on_message(message):
     reveal = None
     if ri and message.content.startswith('!scores') and message.guild:
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
-        entries = []
+
         last_t = last_score = None
+        mrank = None
+        ranked = []
         for t, (uid, score) in enumerate(scores, 1):
             member = message.guild.get_member(int(uid.decode('utf-8')))
             if member is None: continue
             rank = last_t if score == last_score else t
-            if rank <= 10 or message.author == member:
+            if message.author == member: mrank = rank
+            ranked.append((rank, member, score))
+            last_t = t
+            last_score = score
+
+        entries = []
+        did_dots = False
+        for rank, member, score in ranked:
+            if rank <= TOP_N or mrank and abs(rank - mrank) <= 1:
+                if rank >= TOP_N + 2 and not did_dots:
+                    entries.append('…')
+                    did_dots = True
                 wins = 'win' if score == 1 else 'wins'
                 entry = f'{rank}. {member.display_name} ({int(score)} {wins})'
                 if message.author == member: entry = f'**{entry}**'
                 entry += {1: ' 🥇', 2: ' 🥈', 3: ' 🥉'}.get(rank, '')
                 entries.append(entry)
-            last_t = t
-            last_score = score
 
         await say('**Leaderboard**\n' + '\n'.join(entries))
 
