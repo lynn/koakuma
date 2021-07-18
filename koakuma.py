@@ -125,12 +125,21 @@ async def on_message(message):
     if ri and message.content.startswith('!scores') and message.guild:
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
         entries = []
-        for uid, score in scores:
+        last_t = last_score = None
+        for t, (uid, score) in enumerate(scores, 1):
             member = message.guild.get_member(int(uid.decode('utf-8')))
             if member is None: continue
-            entries.append('%s (%d win%s)' % (member.display_name, score, '' if score == 1 else 's'))
-            if len(entries) >= 10: break
-        await say('**Leaderboard**\n' + '\n'.join('%d. %s' % t for t in enumerate(entries, 1)))
+            rank = last_t if score == last_score else t
+            if rank <= 10 or message.author == member:
+                wins = 'win' if score == 1 else 'wins'
+                entry = f'{rank}. {member.display_name} ({int(score)} {wins})'
+                if message.author == member: entry = f'**{entry}**'
+                entry += {1: ' 🥇', 2: ' 🥈', 3: ' 🥉'}.get(rank, '')
+                entries.append(entry)
+            last_t = t
+            last_score = score
+
+        await say('**Leaderboard**\n' + '\n'.join(entries))
 
     elif message.content.startswith('!manual'):
         if game: return
