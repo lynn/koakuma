@@ -62,7 +62,6 @@ aestus_estus
 afloat
 afro
 after_ejaculation
-after_fellatio
 after_kiss
 after_paizuri
 afterimage
@@ -650,7 +649,6 @@ blindfold
 blinds
 blinking
 blonde_hair
-blonde_pubic_hair
 blood
 blood_from_mouth
 blood_on_face
@@ -1188,7 +1186,6 @@ clothed_animal
 clothed_female_nude_female
 clothed_female_nude_male
 clothed_male_nude_female
-clothed_masturbation
 clothed_pokemon
 clothes
 clothes_around_waist
@@ -1242,7 +1239,6 @@ color_trace
 colored_eyelashes
 colored_inner_hair
 colored_pencil_(medium)
-colored_pubic_hair
 colored_sclera
 colored_skin
 colored_tongue
@@ -1399,7 +1395,6 @@ cucumber
 cuddling
 cuffs
 cumdrip
-cunnilingus
 cup
 cup_ramen
 cupcake
@@ -1525,6 +1520,7 @@ disgaea
 disgust
 dish
 disposable_cup
+dissolving
 diving_mask
 diving_mask_on_head
 dixie_cup_hat
@@ -1717,7 +1713,6 @@ evolutionary_line
 ex-keine
 excalibur_(fate/stay_night)
 excalibur_morgan_(fate)
-excessive_pubic_hair
 exercise
 exhibitionism
 explosion
@@ -1827,14 +1822,11 @@ feeding
 feet
 feet_out_of_frame
 feet_up
-fellatio
-fellatio_gesture
 female_admiral_(kancolle)
 female_ejaculation
 female_orgasm
 female_pervert
 female_pov
-female_pubic_hair
 femdom
 fence
 fennec_(kemono_friends)
@@ -1881,7 +1873,6 @@ fire
 fire_emblem
 fire_emblem:_mystery_of_the_emblem
 fire_emblem:_path_of_radiance
-fire_emblem:_radiant_dawn
 fire_emblem:_the_binding_blade
 fire_emblem:_the_blazing_blade
 fire_emblem:_three_houses
@@ -3434,9 +3425,7 @@ makise_kurisu
 makizushi
 male_cleavage
 male_focus
-male_masturbation
 male_playboy_bunny
-male_pubic_hair
 male_swimwear
 male_underwear
 mallet
@@ -3469,8 +3458,6 @@ mask_pull
 mask_removed
 masochism
 master_sword
-masturbation
-masturbation_through_clothing
 matching_outfit
 mating_press
 matoi_ryuuko
@@ -3573,7 +3560,6 @@ mismatched_bikini
 mismatched_footwear
 mismatched_gloves
 mismatched_legwear
-mismatched_pubic_hair
 mismatched_sleeves
 missile
 missionary
@@ -3595,7 +3581,6 @@ mob_cap
 mobile_suit
 mochi
 mod3_(girls'_frontline)
-moderate_pubic_hair
 mogami_(kancolle)
 mohawk
 mole
@@ -3691,7 +3676,6 @@ multiple_boys
 multiple_braids
 multiple_crossover
 multiple_earrings
-multiple_fellatio
 multiple_girls
 multiple_hair_bows
 multiple_horns
@@ -4481,12 +4465,6 @@ prosthetic_arm
 prosthetic_leg
 prostitution
 prostration
-pubic_hair
-pubic_hair_peek
-pubic_tattoo
-public
-public_nudity
-public_use
 puckered_lips
 pudding
 puddle
@@ -5462,7 +5440,6 @@ strawberry_hair_ornament
 strawberry_panties
 strawberry_print
 strawberry_shortcake
-stray_pubic_hair
 streaked_hair
 stream
 streaming_tears
