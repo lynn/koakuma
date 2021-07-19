@@ -126,25 +126,23 @@ async def on_message(message):
     if ri and message.content.startswith('!scores') and message.guild:
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
 
-        last_t = last_score = None
+        last_i = last_score = None
         mrank = None
         ranked = []
-        for t, (uid, score) in enumerate(scores, 1):
+        for i, (uid, score) in enumerate(scores, 1):
             member = message.guild.get_member(int(uid.decode('utf-8')))
             if member is None: continue
-            rank = last_t if score == last_score else t
+            rank = last_i if score == last_score else i
             if message.author == member: mrank = rank
             ranked.append((rank, member, score))
-            last_t = t
+            last_i = i
             last_score = score
 
         entries = []
-        did_dots = False
         for rank, member, score in ranked:
             if rank <= TOP_N or mrank and abs(rank - mrank) <= 1:
-                if rank >= TOP_N + 2 and not did_dots:
+                if mrank and mrank >= TOP_N + 3 and rank == mrank - 1:
                     entries.append('…')
-                    did_dots = True
                 wins = 'win' if score == 1 else 'wins'
                 entry = f'{rank}. {member.display_name} ({int(score)} {wins})'
                 if message.author == member: entry = f'**{entry}**'
