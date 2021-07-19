@@ -56,9 +56,32 @@ def tag_wiki_embed(tag):
     except requests.exceptions.RequestException as e:
         print(e)
 
+def get_image_urls(amount, tag):
+    url = ROOT + '/posts.json?limit=%d&random=true&tags=%s' % (50, tag)
+    retries = 2
+    items = []
+    while retries and len(items) < amount:
+        retries -= 1
+        try:
+            js = requests.get(url).json()
+            for j in js:
+                if any(is_bad(tag) for tag in j['tag_string'].split()):
+                    continue
+                if 'large_file_url' in j and j['id'] not in [item['id'] for item in items]:
+                    items.append(j)
+                if len(items) >= amount:
+                    # The URL looks like: /data/sample/__some_tags_here__sample-d5aefcdbc9db6f56ce504915f2128e2a.jpg
+                    # We strip the __\w+__ part as it might give away the answer.
+                    return [urllib.parse.urljoin(ROOT, re.sub(r'__\w+__', '', item['large_file_url'])) for item in items]
+        except:
+            print('Connection error. Retrying.')
+        time.sleep(0.2)
+    print('Ran out of tries, the given tag must not have many images...')
+    return None
+
 class Game:
     tag_index = 0
-    def __init__(self, root, second_tag, manual_tag=None, no_kc=False):
+    def __init__(self, manual_tag=None, no_kc=False):
         print('Starting a new game...')
         while True:
             if manual_tag:
@@ -72,29 +95,10 @@ class Game:
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
-            url = root + '/posts.json?limit=%d&random=true&tags=%s %s' % (50, self.tag, second_tag)
-            # Try a couple of times to gather (NUM_IMAGES) unique images
-            retries = 2
-            items = []
-            while retries and len(items) < NUM_IMAGES:
-                retries -= 1
-                try:
-                    js = requests.get(url).json()
-                    for j in js:
-                        if any(is_bad(tag) for tag in j['tag_string'].split()):
-                            continue
-                        if 'large_file_url' in j and j['id'] not in [item['id'] for item in items]:
-                            items.append(j)
-                        if len(items) == NUM_IMAGES:
-                            # The URL looks like: /data/sample/__some_tags_here__sample-d5aefcdbc9db6f56ce504915f2128e2a.jpg
-                            # We strip the __\w+__ part as it might give away the answer.
-                            self.urls = [urllib.parse.urljoin(root, re.sub(r'__\w+__', '', item['large_file_url'])) for item in items]
-                            return
-                except:
-                    print('Connection error. Retrying.')
-                time.sleep(0.2)
-            print('Ran out of tries, the given tag must not have many images...')
-            if manual_tag:
+            self.urls = get_image_urls(NUM_IMAGES, self.tag)
+            if self.urls:
+                return
+            elif manual_tag:
                 raise ValueError("Manual tag didn't give enough results!")
 
 game = None
@@ -154,6 +158,11 @@ async def on_message(message):
 
         await say('**Leaderboard**\n' + '\n'.join(entries))
 
+    elif message.content.startswith('!show') and not game:
+        query = '_'.join(message.content.split()[1:])
+        urls = get_image_urls(1, query)
+        await say(urls[0] if urls else "💤")
+
     elif message.content.startswith('!manual'):
         if game: return
         game_channel = message.channel
@@ -169,7 +178,7 @@ async def on_message(message):
 
         try:
             no_kc = 'nokc' in message.content
-            current = game = Game(ROOT, '-ugoira', manual_tag=manual_tag, no_kc=no_kc)
+            current = game = Game(manual_tag=manual_tag, no_kc=no_kc)
             if manual_tag: await say("Started a game with tag \"{}\"".format(manual_tag))
         except ValueError:
             await say("That tag doesn't give enough results, please try a different one!")
