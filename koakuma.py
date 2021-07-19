@@ -1,4 +1,5 @@
 import asyncio, discord, json, lxml.html, os, random, re, requests, time, urllib.parse
+from fetch_tags import is_bad
 
 ROOT = 'https://safebooru.donmai.us'
 NUM_IMAGES = 9
@@ -71,15 +72,17 @@ class Game:
             self.pretty_tag = self.tag.replace('_', ' ')
             self.answer = normalize(self.tag)
             self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
-            url = root + '/posts.json?limit=%d&random=true&tags=%s %s' % (NUM_IMAGES, self.tag, second_tag)
+            url = root + '/posts.json?limit=%d&random=true&tags=%s %s' % (50, self.tag, second_tag)
             # Try a couple of times to gather (NUM_IMAGES) unique images
-            retries = 10
+            retries = 2
             items = []
             while retries and len(items) < NUM_IMAGES:
                 retries -= 1
                 try:
                     js = requests.get(url).json()
                     for j in js:
+                        if any(is_bad(tag) for tag in j['tag_string'].split()):
+                            continue
                         if 'large_file_url' in j and j['id'] not in [item['id'] for item in items]:
                             items.append(j)
                         if len(items) == NUM_IMAGES:

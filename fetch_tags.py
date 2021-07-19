@@ -20,10 +20,13 @@ def alphanumeric_count(string):
 
 def is_bad(tag):
     return re.search(codecs.decode(
-        r"(_|^)(anmv|encrq?|gehgu|htbven|qbhwvafuv|qenjsnt|shgn(anev)?|unaqwbo|pbaqbzf?"
-        r"|ybyv|nohfr|elban|cravf(rf)?|intvany?|nany|frk|(cer)?phz(fubg)?|crargengvba|chffl"
-        r"|abbfr|rerpgvba|pebgpu(yrff)?|qrngu|choy?vp|sryyngvb|phaavyvathf|znfgheongvba"
-        r"|bar-ubhe_qenjvat_punyyratr|^bevtvany$)(_|$)", "rot_13"), tag)
+        r"(_|^)(anmv|encrq?|gehgu|fcbvyref|htbven|qenjsnt|shgn(anev)?|\j+wbo|pbaqbzf?|oehvfr|theb"
+        r"|ybyv|nohfr|elban|cravf(rf)?|intvany?|nany|frk|(cer)?phz(fubg)?|crargengvba|chffl|betnfz|crr"
+        r"|abbfr|rerpgvba|pebgpu(yrff)?|qrngu|chovp|^choyvp(_hfr|_ahqvgl)?$|sryyngvb|phaavyvathf"
+        r"|znfgheongvba|svatrevat)(_|$)", "rot_13"), tag)
+
+def is_unguessable(tag):
+    return tag in ["one-hour_drawing_challenge", "doujinshi", "original"]
 
 def fetch_aliases():
     tag_aliases = defaultdict(list)
@@ -60,7 +63,7 @@ def fetch_tags():
                 allowed = [GENERAL]
 
             wordish = alphanumeric_count(tag_name) >= 3
-            decent = not is_bad(tag_name)
+            decent = not (is_bad(tag_name) or is_unguessable(tag_name))
             relevant = tag_category in allowed
 
             if wordish and decent and relevant:
@@ -71,5 +74,6 @@ def fetch_tags():
     with open('tags.txt', 'w') as f:
         f.write('\n'.join(sorted(tags)) + '\n')
 
-fetch_tags()
-#fetch_aliases()
+if __name__ == '__main__':
+    fetch_tags()
+    #fetch_aliases()
