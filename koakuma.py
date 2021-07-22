@@ -34,6 +34,17 @@ def alnums(s):
     # This is used to compare guesses and answers, so that "catgirl" == "cat-girl" == "cat girl" == "catgirl?".
     return ''.join(c for c in s if c.isalnum())
 
+def no_results(query):
+    q = query.replace("_", " ")
+    return random.choice([
+        f"I couldn't find anything for `{q}`...",
+        f"No results for `{q}`.",
+        f"I don't even know what `{q}` is.",
+        f"`{q}`? Let's see... nope, nothing.",
+        f"💤",
+        f"💤💬 _mumble mumble... `{normalize(random.choice(tags))}`..._",
+    ])
+
 def tag_wiki_embed(tag):
     """Return a Discord Embed describing the given tag, or None."""
     wiki_url = ROOT + '/wiki_pages/' + tag
@@ -57,13 +68,12 @@ def tag_wiki_embed(tag):
         print(e)
 
 def get_image_urls(amount, tag):
-    url = ROOT + '/posts.json?limit=%d&random=true&tags=%s' % (50, tag)
     retries = 2
     items = []
     while retries and len(items) < amount:
         retries -= 1
         try:
-            js = requests.get(url).json()
+            js = requests.get(ROOT + '/posts.json', params={'limit': 50, 'random': 'true', 'tags': tag}).json()
             for j in js:
                 if any(is_bad(tag) for tag in j['tag_string'].split()):
                     continue
@@ -122,12 +132,16 @@ async def on_message(message):
     global game_channel
     say = lambda s: message.channel.send(s)
     if message.author == client.user: return
-    if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS: return
     if message.guild: table = 'leaderboard'
 
     manual_tag = None
     if not game and game_master and message.author.id == game_master.id and isinstance(message.channel, discord.abc.PrivateChannel):
         manual_tag = re.sub('\s+', '_', message.content)
+        for k, v in aliases.items():
+            if manual_tag in v:
+                await game_master.send(f"That's just an alias of `{k}`, so I'm starting a game with that.")
+                manual_tag = k
+                break
 
     reveal = None
     if ri and message.content.startswith('!scores') and message.guild:
@@ -160,10 +174,18 @@ async def on_message(message):
 
     elif message.content.startswith('!show') and not game:
         query = '_'.join(message.content.split()[1:])
-        urls = get_image_urls(1, query)
-        await say(urls[0] if urls else "💤")
+        urls = get_image_urls(1, re.sub(r'_(AND|&&)_', ' ', query))
+        await say(urls[0] if urls else no_results(query))
+
+    elif message.content.startswith('!wiki') and not game:
+        query = '_'.join(message.content.split()[1:])
+        embed = tag_wiki_embed(query)
+        await message.channel.send("Here's what I found!" if embed else no_results(query), embed=embed)
 
     elif message.content.startswith('!manual'):
+        if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS:
+            await say("Let's play somewhere else: " + " ".join(c.mention for c in message.guild.channels if c.name in GAME_CHANNELS))
+            return
         if game: return
         game_channel = message.channel
         game_master = message.author
@@ -171,6 +193,9 @@ async def on_message(message):
         await game_master.send('Please give your tag.')
 
     elif message.content.startswith('!start') or manual_tag:
+        if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS:
+            await say("Let's play somewhere else: " + " ".join(c.mention for c in message.guild.channels if c.name in GAME_CHANNELS))
+            return
         if game: return
         if game_master and not manual_tag: return
 
