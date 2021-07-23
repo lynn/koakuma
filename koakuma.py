@@ -7,6 +7,7 @@ TIME_BETWEEN_IMAGES = 3.0
 TIME_BETWEEN_LETTERS = 30.0
 GAME_CHANNELS = ['games']
 TOP_N = 10
+TIE_SECONDS = 0.5
 
 redis_url = os.getenv('KOAKUMA_REDIS_URL')
 ri = None
@@ -93,6 +94,10 @@ class Game:
     tag_index = 0
     def __init__(self, channel, game_master=None, no_kc=False):
         self.task = None
+        self.tie_task = None
+        self.winners = []
+        self.winner_message = None
+        self.winner_lock = asyncio.Lock()
         self.channel = channel
         self.game_master = game_master
         if game_master:
@@ -110,7 +115,7 @@ class Game:
         self.start(self.tag)
 
     def active(self):
-        return self.task and not self.task.done()
+        return self.task and not self.task.done() or self.tie_task and not self.tie_task.done()
 
     async def supply_manual_tag(self, tag):
         self.urls = get_image_urls(NUM_IMAGES, tag)
@@ -149,15 +154,40 @@ class Game:
                 await asyncio.sleep(TIME_BETWEEN_LETTERS)
             mask[i] = self.answer[i]
 
-        self.channel.send(f"Time's up! The answer was **`{self.pretty_tag}`**.")
+        await self.channel.send(f"Time's up! The answer was **`{self.pretty_tag}`**.")
 
-    async def reveal(self, message):
-        self.task.cancel()
-        wiki_embed = tag_wiki_embed(game.tag)
-        await self.channel.send(message, embed=wiki_embed)
-        await self.channel.send('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
-        if is_kancolle(self.tag):
-            await self.channel.send('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
+    async def show_winner(self, member):
+        async with self.winner_lock:
+            # Can't win a game twice:
+            if member in self.winners: return
+            self.winners.append(member)
+
+            # Award points for public games, but not for giving away the answer.
+            if ri and self.channel.guild and member != game.game_master:
+                # TODO: leaderboards per guild
+                ri.zincrby('leaderboard', 1, member.id)
+
+            # Format a message about the outcome of the game.
+            real_winners = [w for w in self.winners if w != self.game_master]
+            subjects, verb = (real_winners, "got it") if real_winners else (self.winners, "gave it away")
+            names = re.sub(r"(.*), ", r"\1 and ", ", ".join(m.display_name for m in subjects))
+            message = f"{names} {verb}! The answer was **`{self.pretty_tag}`**."
+
+            if self.winner_message:
+                await self.winner_message.edit(content=message)
+            else:
+                wiki_embed = tag_wiki_embed(game.tag)
+                self.winner_message = await self.channel.send(message, embed=wiki_embed)
+                await self.channel.send('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
+                if is_kancolle(self.tag):
+                    await self.channel.send('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
+
+    async def reveal(self, member):
+        if not self.task.done():
+            self.task.cancel()
+            self.tie_task = asyncio.create_task(asyncio.sleep(TIE_SECONDS))
+        if self.active():
+            await self.show_winner(member)
 
 game = None
 
@@ -172,9 +202,7 @@ async def on_ready():
 @client.event
 async def on_message(message):
     global game
-    say = lambda s: message.channel.send(s)
     if message.author == client.user: return
-    if message.guild: table = 'leaderboard'
 
     if game and not game.tag and message.author == game.game_master and isinstance(message.channel, discord.abc.PrivateChannel):
         tag = re.sub(r'\s+', '_', message.content.strip())
@@ -186,7 +214,7 @@ async def on_message(message):
         await game.supply_manual_tag(tag)
 
     elif ri and message.content.startswith('!scores') and message.guild:
-        scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
+        scores = ri.zrange('leaderboard', 0, -1, desc=True, withscores=True)
 
         last_i = last_score = None
         mrank = None
@@ -211,13 +239,13 @@ async def on_message(message):
                 entry += {1: ' 🥇', 2: ' 🥈', 3: ' 🥉'}.get(rank, '')
                 entries.append(entry)
 
-        await say('**Leaderboard**\n' + '\n'.join(entries))
+        await message.channel.send('**Leaderboard**\n' + '\n'.join(entries))
 
     elif message.content.startswith('!show'):
         if game and game.active(): return
         query = '_'.join(message.content.split()[1:])
         urls = get_image_urls(1, re.sub(r'_(AND|&&)_', ' ', query))
-        await say(urls[0] if urls else no_results(query))
+        await message.channel.send(urls[0] if urls else no_results(query))
 
     elif message.content.startswith('!wiki'):
         if game and game.active(): return
@@ -227,25 +255,19 @@ async def on_message(message):
 
     elif message.content.startswith('!start') or message.content.startswith('!manual'):
         if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS:
-            await say("Let's play somewhere else: " + " ".join(c.mention for c in message.guild.channels if c.name in GAME_CHANNELS))
+            await message.channel.send("Let's play somewhere else: " + " ".join(c.mention for c in message.guild.channels if c.name in GAME_CHANNELS))
             return
         if game and game.active(): return
 
         if message.content.startswith('!manual'):
-            await say("Waiting for %s to send me a tag..." % message.author.display_name)
+            await message.channel.send("Waiting for %s to send me a tag..." % message.author.display_name)
             await message.author.send('Please give your tag.')
             game = Game(message.channel, game_master=message.author)
         else:
             game = Game(message.channel, no_kc='nokc' in message.content)
 
     elif game and game.active() and message.channel == game.channel and alnums(normalize(message.content)) in map(alnums, game.answers):
-        verb = "gave it away"
-        if message.author != game.game_master:
-            verb = "got it"
-            if ri and message.guild:
-                ri.zincrby(table, 1, message.author.id)
-        await game.reveal(f"{message.author.display_name} {verb}! The answer was **`{game.pretty_tag}`**.")
-        game = None
+        await game.reveal(message.author)
 
 @client.event
 async def on_message_edit(before, after):
