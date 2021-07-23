@@ -42,7 +42,7 @@ def no_results(query):
         f"I don't even know what `{q}` is.",
         f"`{q}`? Let's see... nope, nothing.",
         f"💤",
-        f"💤💬 _mumble mumble... `{normalize(random.choice(tags))}`..._",
+        # f"💤💬 _mumble mumble... `{normalize(random.choice(tags))}`..._",
     ])
 
 def tag_wiki_embed(tag):
@@ -91,60 +91,101 @@ def get_image_urls(amount, tag):
 
 class Game:
     tag_index = 0
-    def __init__(self, manual_tag=None, no_kc=False):
-        print('Starting a new game...')
-        while True:
-            if manual_tag:
-                self.tag = manual_tag
-            else:
-                self.tag = tags[Game.tag_index]
-                Game.tag_index = (Game.tag_index + 1) % len(tags)
-                if is_kancolle(self.tag) and no_kc: continue
-                if Game.tag_index == 0: random.shuffle(tags)
-
-            self.pretty_tag = self.tag.replace('_', ' ')
-            self.answer = normalize(self.tag)
-            self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
+    def __init__(self, channel, game_master=None, no_kc=False):
+        self.task = None
+        self.channel = channel
+        self.game_master = game_master
+        if game_master:
+            # Wait for them to pick.
+            self.tag = None
+            return
+        # Otherwise, pick a random tag and start:
+        self.urls = None
+        while not self.urls:
+            self.tag = tags[Game.tag_index]
+            Game.tag_index = (Game.tag_index + 1) % len(tags)
+            if is_kancolle(self.tag) and no_kc: continue
+            if Game.tag_index == 0: random.shuffle(tags)
             self.urls = get_image_urls(NUM_IMAGES, self.tag)
-            if self.urls:
-                return
-            elif manual_tag:
-                raise ValueError("Manual tag didn't give enough results!")
+        self.start(self.tag)
+
+    def active(self):
+        return self.task and not self.task.done()
+
+    async def supply_manual_tag(self, tag):
+        self.urls = get_image_urls(NUM_IMAGES, tag)
+        if self.urls:
+            self.start(tag)
+        else:
+            await self.game_master.send("Not enough results, try another tag.")
+
+    def start(self, tag):
+        self.tag = tag
+        self.pretty_tag = self.tag.replace('_', ' ')
+        self.answer = normalize(self.tag)
+        self.answers = [self.answer] + [normalize(tag) for tag in aliases.get(self.tag, [])]
+        assert not self.task
+        self.task = asyncio.create_task(self.play_game())
+
+    async def play_game(self):
+        if self.game_master:
+            await self.channel.send(f"A tag has been decided by {self.game_master.display_name}!")
+        await self.channel.send("Find the common tag between these images:")
+
+        for url in self.urls:
+            await self.channel.send(url)
+            await asyncio.sleep(TIME_BETWEEN_IMAGES)
+
+        # Slowly unmask the answer.
+        mask = list(re.sub(r'\w', '●', self.answer))
+        indices = [i for i, c in enumerate(mask) if c == '●']
+        random.shuffle(indices)
+        length_hint = ' (%s)' % ', '.join(str(w.count('●')) for w in ''.join(mask).split())
+        for i, masked in zip(indices, range(len(indices), 0, -1)):
+            # Show letters faster if there are many masked ones left.
+            if masked < 15 or masked % 2 == 0:
+                await self.channel.send('Hint: **`%s`**' % ''.join(mask) + length_hint)
+                length_hint = ''
+                await asyncio.sleep(TIME_BETWEEN_LETTERS)
+            mask[i] = self.answer[i]
+
+        self.channel.send(f"Time's up! The answer was **`{self.pretty_tag}`**.")
+
+    async def reveal(self, message):
+        self.task.cancel()
+        wiki_embed = tag_wiki_embed(game.tag)
+        await self.channel.send(message, embed=wiki_embed)
+        await self.channel.send('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
+        if is_kancolle(self.tag):
+            await self.channel.send('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
 
 game = None
-game_master = None
-game_channel = None
+
 intents = discord.Intents.default()
 intents.members = True
 client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-    print('Ready; loaded %d tags.' % len(tags))
-
-async def game_say(s):
-    await game_channel.send(s)
+    print(f"Ready; loaded {len(tags)} tags.")
 
 @client.event
 async def on_message(message):
     global game
-    global game_master
-    global game_channel
     say = lambda s: message.channel.send(s)
     if message.author == client.user: return
     if message.guild: table = 'leaderboard'
 
-    manual_tag = None
-    if not game and game_master and message.author.id == game_master.id and isinstance(message.channel, discord.abc.PrivateChannel):
-        manual_tag = re.sub('\s+', '_', message.content)
+    if game and not game.tag and message.author == game.game_master and isinstance(message.channel, discord.abc.PrivateChannel):
+        tag = re.sub(r'\s+', '_', message.content.strip())
         for k, v in aliases.items():
-            if manual_tag in v:
-                await game_master.send(f"That's just an alias of `{k}`, so I'm starting a game with that.")
-                manual_tag = k
+            if tag in v:
+                await message.channel.send(f"That's just an alias of `{k}`, so I'm starting a game with that.")
+                tag = k
                 break
+        await game.supply_manual_tag(tag)
 
-    reveal = None
-    if ri and message.content.startswith('!scores') and message.guild:
+    elif ri and message.content.startswith('!scores') and message.guild:
         scores = ri.zrange(table, 0, -1, desc=True, withscores=True)
 
         last_i = last_score = None
@@ -172,87 +213,39 @@ async def on_message(message):
 
         await say('**Leaderboard**\n' + '\n'.join(entries))
 
-    elif message.content.startswith('!show') and not game:
+    elif message.content.startswith('!show'):
+        if game and game.active(): return
         query = '_'.join(message.content.split()[1:])
         urls = get_image_urls(1, re.sub(r'_(AND|&&)_', ' ', query))
         await say(urls[0] if urls else no_results(query))
 
-    elif message.content.startswith('!wiki') and not game:
+    elif message.content.startswith('!wiki'):
+        if game and game.active(): return
         query = '_'.join(message.content.split()[1:])
         embed = tag_wiki_embed(query)
         await message.channel.send("Here's what I found!" if embed else no_results(query), embed=embed)
 
-    elif message.content.startswith('!manual'):
+    elif message.content.startswith('!start') or message.content.startswith('!manual'):
         if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS:
             await say("Let's play somewhere else: " + " ".join(c.mention for c in message.guild.channels if c.name in GAME_CHANNELS))
             return
-        if game: return
-        game_channel = message.channel
-        game_master = message.author
-        await game_say("Waiting for %s to send me a tag..." % message.author.display_name)
-        await game_master.send('Please give your tag.')
+        if game and game.active(): return
 
-    elif message.content.startswith('!start') or manual_tag:
-        if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS:
-            await say("Let's play somewhere else: " + " ".join(c.mention for c in message.guild.channels if c.name in GAME_CHANNELS))
-            return
-        if game: return
-        if game_master and not manual_tag: return
-
-        game_channel = game_channel or message.channel
-
-        try:
-            no_kc = 'nokc' in message.content
-            current = game = Game(manual_tag=manual_tag, no_kc=no_kc)
-            if manual_tag: await say("Started a game with tag \"{}\"".format(manual_tag))
-        except ValueError:
-            await say("That tag doesn't give enough results, please try a different one!")
-            return
-
-        if manual_tag:
-            await game_say('A tag has been decided by %s!' % game_master.display_name)
-        await game_say("Find the common tag between these images:")
-
-        for url in game.urls:
-            await game_say(url)
-            await asyncio.sleep(TIME_BETWEEN_IMAGES)
-            if game is not current: return
-
-        # Slowly unmask the answer.
-        mask = list(re.sub(r'\w', '●', game.answer))
-        indices = [i for i, c in enumerate(mask) if c == '●']
-        random.shuffle(indices)
-        length_hint = ' (%s)' % ', '.join(str(w.count('●')) for w in ''.join(mask).split())
-        for i, masked in zip(indices, range(len(indices), 0, -1)):
-            # Show letters faster if there are many masked ones left.
-            if masked < 15 or masked % 2 == 0:
-                await game_say('Hint: **`%s`**' % ''.join(mask) + length_hint)
-                length_hint = ''
-                await asyncio.sleep(TIME_BETWEEN_LETTERS)
-                if game is not current: return
-            mask[i] = game.answer[i]
-
-        reveal = "Time's up! The answer was **`%s`**." % game.pretty_tag
-
-    elif game and message.channel.id == game_channel.id and alnums(normalize(message.content)) in map(alnums, game.answers):
-        answer = game.pretty_tag
-        if game_master and game_master.id == message.author.id:
-            reveal = '%s gave it away! The answer was **`%s`**!' % (message.author.display_name, answer)
+        if message.content.startswith('!manual'):
+            await say("Waiting for %s to send me a tag..." % message.author.display_name)
+            await message.author.send('Please give your tag.')
+            game = Game(message.channel, game_master=message.author)
         else:
-            reveal = '%s got it! The answer was **`%s`**.' % (message.author.display_name, answer)
+            game = Game(message.channel, no_kc='nokc' in message.content)
+
+    elif game and game.active() and message.channel == game.channel and alnums(normalize(message.content)) in map(alnums, game.answers):
+        verb = "gave it away"
+        if message.author != game.game_master:
+            verb = "got it"
             if ri and message.guild:
                 ri.zincrby(table, 1, message.author.id)
-        game_master = None
-
-    if reveal:
-        wiki_embed = tag_wiki_embed(game.tag)
-        await game_channel.send(reveal, embed=wiki_embed)
-        await game_say('Type `!start` to play another game, or `!manual` to choose a tag for others to guess.')
-        if is_kancolle(game.tag):
-            await game_say('(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)')
+        await game.reveal(f"{message.author.display_name} {verb}! The answer was **`{game.pretty_tag}`**.")
         game = None
-        game_master = None
-        game_channel = None
 
 @client.event
 async def on_message_edit(before, after):
