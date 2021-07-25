@@ -69,26 +69,33 @@ def tag_wiki_embed(tag):
         print(e)
 
 def get_image_urls(amount, tag):
-    retries = 2
-    items = []
-    while retries and len(items) < amount:
-        retries -= 1
+    urls = []
+    for retry in range(3):
         try:
             js = requests.get(ROOT + '/posts.json', params={'limit': 50, 'random': 'true', 'tags': tag}).json()
             for j in js:
-                if any(is_bad(tag) for tag in j['tag_string'].split()):
-                    continue
-                if 'large_file_url' in j and j['id'] not in [item['id'] for item in items]:
-                    items.append(j)
-                if len(items) >= amount:
+                if 'large_file_url' not in j: continue
+                if j['is_deleted']: continue
+                if any(is_bad(tag) for tag in j['tag_string'].split()): continue
+                url = j['large_file_url']
+                if url.endswith('.swf'): continue
+                if url in urls: continue
+                urls.append(url)
+                if len(urls) >= amount:
                     # The URL looks like: /data/sample/__some_tags_here__sample-d5aefcdbc9db6f56ce504915f2128e2a.jpg
                     # We strip the __\w+__ part as it might give away the answer.
-                    return [urllib.parse.urljoin(ROOT, re.sub(r'__\w+__', '', item['large_file_url'])) for item in items]
-        except:
-            print('Connection error. Retrying.')
+                    return [urllib.parse.urljoin(ROOT, re.sub(r'__\w+__', '', u)) for u in urls]
+        except requests.exceptions.RequestException as e:
+            print('Connection error. Retrying.', e)
         time.sleep(0.2)
     print('Ran out of tries, the given tag must not have many images...')
     return None
+
+def count_posts(query):
+    try:
+        return requests.get(ROOT + '/counts/posts.json?tags=' + query).json()['counts']['posts']
+    except:
+        return None
 
 class Game:
     tag_index = 0
@@ -134,7 +141,7 @@ class Game:
 
     async def play_game(self):
         if self.game_master:
-            await self.channel.send(f"A tag has been decided by {self.game_master.display_name}!")
+            await self.channel.send(f"A tag has been decided by {self.game_master.mention}!")
         await self.channel.send("Find the common tag between these images:")
 
         for url in self.urls:
@@ -252,6 +259,22 @@ async def on_message(message):
         query = '_'.join(message.content.split()[1:])
         embed = tag_wiki_embed(query)
         await message.channel.send("Here's what I found!" if embed else no_results(query), embed=embed)
+
+    elif message.content.startswith('!compare'):
+        args = ' '.join(message.content.split()[1:])
+        args = args.split('/')
+        if len(args) != 2: return await message.channel.send("Syntax: **!compare blue eyes / blue hair**")
+        tags = [arg.strip().replace(' ', '_') for arg in args]
+        counts = [count_posts(tag) for tag in tags]
+        for i in [0, 1]:
+            if counts[i] == 0: return await message.channel.send(f"No posts are tagged `{tags[i]}`.")
+            if counts[i] is None: return await message.channel.send(f"I couldn't calculate how many posts are tagged `{tags[i]}`.")
+        total = count_posts(' '.join(tags))
+        if total is None: return await message.channel.send(
+            f"I couldn't calculate how many posts are tagged both `{tags[0]}` ({counts[0]:,}) and `{tags[1]}` ({counts[1]:,}).")
+        return await message.channel.send("\n".join(
+            f"**{int(100*total/counts[i])}%** ({total:,}/{counts[i]:,}) of posts tagged `{tags[i]}` is also tagged `{tags[1-i]}`"
+            for i in [0, 1]))
 
     elif message.content.startswith('!start') or message.content.startswith('!manual'):
         if isinstance(message.channel, discord.abc.GuildChannel) and message.channel.name not in GAME_CHANNELS:
