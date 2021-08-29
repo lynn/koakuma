@@ -111,14 +111,14 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
       .map((x) => x.replace(/_/g, " "))
   );
   const artist = commatize(
-    (image.tag_string_artist ?? "unknown artist")
+    (image.tag_string_artist || "unknown artist")
       .split(" ")
       .map((x) => x.replace(/_/g, " "))
   );
   const pixiv = image.pixiv_id;
   const source = pixiv
     ? `https://www.pixiv.net/artworks/${pixiv}`
-    : image.source ?? "unknown";
+    : image.source || "unknown";
   const match = source.match(/https?:\/\/(www\.)?([^/]+)/);
   return new MessageEmbed({
     title: `${characters} :art: ${artist}`.trim(),
@@ -127,7 +127,7 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
     fields: [
       {
         name: "Source",
-        value: (match ? `[${source}](${source})` : source) ?? "unknown",
+        value: match ? `[${source}](${source})` : source,
         inline: true,
       },
     ],
