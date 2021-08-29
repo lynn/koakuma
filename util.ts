@@ -96,7 +96,6 @@ export async function tagWikiEmbed(
 
   // Gotcha! Now strip parentheticals; they're mostly just Japanese names.
   const description = paragraph.textContent.replace(/\s*\([^)]*\)/g, "");
-  console.log(description);
   return new MessageEmbed({
     title: tag.replace(/_/g, " "),
     url: wikiUrl,
