@@ -9,6 +9,7 @@ export interface BooruImage {
   id: string;
   source?: string;
   large_file_url: string;
+  is_banned: boolean;
   is_deleted: boolean;
 }
 

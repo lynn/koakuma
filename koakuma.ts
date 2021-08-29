@@ -8,6 +8,7 @@ import {
   secondsBetweenImages,
   tieSeconds,
 } from "./constants";
+import { awardPoint, scoreboard } from "./scores";
 import { BooruImage, Manual } from "./types";
 import {
   alnums,
@@ -16,7 +17,6 @@ import {
   env,
   gameChannelSuggestion,
   getImages,
-  isKancolle,
   mono,
   normalize,
   shuffleArray,
@@ -24,14 +24,13 @@ import {
   tagWikiEmbed,
 } from "./util";
 
-console.log("Loading aliases...");
+console.log("Loading tags and aliases...");
 const aliases: Record<string, string[]> = require("./aliases.json");
 let aliasOf: Map<string, string> = new Map();
 for (const [k, vs] of Object.entries(aliases)) {
   for (const v of vs) aliasOf.set(v, k);
 }
 
-console.log("Loading tags...");
 const tags = readFileSync("./tags.txt").toString().trimEnd().split("\n");
 shuffleArray(tags);
 
@@ -96,7 +95,7 @@ class Game {
     for (const image of this.images) {
       this.imageMessages.push(await this.channel.send(image.large_file_url));
       await sleep(secondsBetweenImages);
-      if (this.finished) return;
+      if (this.finished || this.winners.length) return;
     }
 
     // Slowly unmask the answer.
@@ -111,7 +110,7 @@ class Game {
         await this.channel.send(`Hint: ${mono(mask.join(""))}${lengthHint}`);
         lengthHint = "";
         await sleep(secondsBetweenHints);
-        if (this.finished) return;
+        if (this.finished || this.winners.length) return;
       }
       mask[indices[i]] = this.answer[indices[i]];
     }
@@ -126,12 +125,9 @@ class Game {
       // Can't win a game twice:
       if (this.winners.includes(member)) return;
       this.winners.push(member);
-
-      // TODO redis
-      // # Award points for public games, but not for giving away the answer.
-      // if ri and self.channel.guild and member != game.game_master:
-      //     # TODO: leaderboards per guild
-      //     ri.zincrby('leaderboard', 1, member.id)
+      // Don't award points for giving manual tags away:
+      if (member.user.id !== this.gameMaster?.user?.id)
+        awardPoint(member.user.id);
     }
 
     // Wait for ties to reach here
@@ -308,6 +304,8 @@ client.on("interactionCreate", async (interaction) => {
       break;
     }
     case "scores": {
+      await interaction.deferReply();
+      await interaction.editReply(await scoreboard(interaction));
       break;
     }
   }
@@ -322,8 +320,6 @@ async function processGuess(message: Message): Promise<void> {
 client.on("messageCreate", processGuess);
 client.on("messageEdit", processGuess);
 
-console.log("Logging in...");
-
 registerCommands();
-const koakumaToken = env("KOAKUMA_TOKEN");
-client.login(koakumaToken);
+console.log("Logging in...");
+client.login(env("KOAKUMA_TOKEN"));

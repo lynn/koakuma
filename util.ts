@@ -109,10 +109,12 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
     (image.tag_string_character || image.tag_string_copyright || "artwork")
       .split(" ")
       .slice(0, 2)
-      .map(normalize)
+      .map((x) => x.replace(/_/g, " "))
   );
   const artist = commatize(
-    (image.tag_string_artist ?? "unknown artist").split(" ").map(normalize)
+    (image.tag_string_artist ?? "unknown artist")
+      .split(" ")
+      .map((x) => x.replace(/_/g, " "))
   );
   const pixiv = image.pixiv_id;
   const source = pixiv
@@ -120,13 +122,13 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
     : image.source ?? "unknown";
   const match = source.match(/https?:\/\/(www\.)?([^/]+)/);
   return new MessageEmbed({
-    title: `${characters} by ${artist}`.trim(),
+    title: `${characters} :art: ${artist}`.trim(),
     url: `${safebooruRoot}/posts/${image.id}`,
     image: { url: image.large_file_url, height: 500 },
     fields: [
       {
         name: "Source",
-        value: match ? `[${match[2]}](${source})` : source,
+        value: (match ? `[${source}](${source})` : source) ?? "unknown",
         inline: true,
       },
     ],
@@ -141,6 +143,15 @@ export async function gameChannelSuggestion(guild: Guild): Promise<string> {
       mentions.push(`<#${c.id}>`);
   }
   return "Let's play somewhere else: " + mentions.join(" ");
+}
+
+function isDisqualified(image: BooruImage): boolean {
+  if (!image.large_file_url) return true;
+  if (image.is_banned) return true;
+  if (image.is_deleted) return true;
+  if (image.large_file_url.endsWith(".swf")) return true;
+  if (image.tag_string.split(" ").some(isBad)) return true;
+  return false;
 }
 
 export async function getImages(
@@ -162,11 +173,7 @@ export async function getImages(
       }
       shuffleArray(candidates);
       for (const candidate of candidates) {
-        if (!candidate.large_file_url) continue;
-        if (candidate.is_deleted) continue;
-        if (candidate.tag_string.split(" ").some(isBad)) continue;
-        if (candidate.large_file_url.endsWith(".swf")) continue;
-        if (ids.has(candidate.id)) continue;
+        if (isDisqualified(candidate) || ids.has(candidate.id)) continue;
         ids.add(candidate.id);
         images.push(candidate);
         if (images.length >= amount) return images;
