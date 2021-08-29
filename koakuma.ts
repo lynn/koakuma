@@ -311,14 +311,19 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 async function processGuess(message: Message): Promise<void> {
-  if (message.member && game && game.isCorrect(message.content)) {
-    game.reveal(message.member);
+  const { member, content } = message;
+  if (/^!\w+/.test(content)) {
+    const fixed = content.replace(/!/, "/").replace(/ .*/, "");
+    message.reply(`I use slash-commands now. Try typing **${fixed}**!`);
+  } else if (member && game && game.isCorrect(content)) {
+    game.reveal(member);
   }
 }
 
 client.on("messageCreate", processGuess);
 client.on("messageEdit", processGuess);
 client.on("error", console.error);
+process.on("unhandledRejection", console.error);
 
 registerCommands();
 console.log("Logging in...");

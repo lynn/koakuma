@@ -90,7 +90,11 @@ export async function tagWikiEmbed(
 
   // Find the first classless <p> tag that *directly* has Latin text in it.
   const paragraph = [...document.querySelectorAll("#wiki-page-body>p")].find(
-    (p) => p.className === "" && /[a-zA-Z]/.test(p.textContent ?? "")
+    (p) =>
+      p.className === "" &&
+      [...p.childNodes].some(
+        (x) => x.nodeType === 3 && /[a-z]/i.test(x.textContent ?? "")
+      )
   );
   if (!paragraph || !paragraph.textContent) return undefined;
 
