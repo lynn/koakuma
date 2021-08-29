@@ -1,30 +1,28 @@
-import { REST } from "@discordjs/rest";
-import { Routes } from "discord-api-types/v9";
-import {
-  ApplicationCommandData,
-  Client,
-  Guild,
-  GuildMember,
-  Intents,
-  Message,
-  MessageEmbed,
-  TextChannel,
-} from "discord.js";
+import { Client, GuildMember, Intents, Message, TextChannel } from "discord.js";
 import { readFileSync } from "fs";
-import { JSDOM } from "jsdom";
-import fetch from "node-fetch";
-import { URL } from "url";
-
-const safebooruRoot = "https://safebooru.donmai.us";
-// const imagesPerGame = 9;
-// const secondsBetweenImages = 3.0;
-// const secondsBetweenHints = 30.0;
-const imagesPerGame = 2;
-const secondsBetweenImages = 2.0;
-const secondsBetweenHints = 2.0;
-const gameChannelNames = ["games"];
-const topN = 10;
-const tieSeconds = 0.5;
+import { registerCommands } from "./commands";
+import {
+  gameChannelNames,
+  imagesPerGame,
+  secondsBetweenHints,
+  secondsBetweenImages,
+  tieSeconds,
+} from "./constants";
+import { BooruImage, Manual } from "./types";
+import {
+  alnums,
+  commatize,
+  creditEmbed,
+  env,
+  gameChannelSuggestion,
+  getImages,
+  isKancolle,
+  mono,
+  normalize,
+  shuffleArray,
+  sleep,
+  tagWikiEmbed,
+} from "./util";
 
 console.log("Loading aliases...");
 const aliases: Record<string, string[]> = require("./aliases.json");
@@ -35,184 +33,9 @@ for (const [k, vs] of Object.entries(aliases)) {
 
 console.log("Loading tags...");
 const tags = readFileSync("./tags.txt").toString().trimEnd().split("\n");
-
-function shuffleArray<T>(array: T[]) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-
-function mono(s: string): string {
-  return "**`" + s + "`**";
-}
-
 shuffleArray(tags);
 
-const badRegex = new RegExp(
-  "(_|^)(anmv|encrq?|gehgu|fcbvyref|htbven|qenjsnt|shgn(anev)?|j+wbo|pbaqbzf?|oehvfr|theb|ybyv|nohfr|elban|cravf(rf)?|intvany?|nany|frk|(cer)?phz(fubg)?|crargengvba|chffl|betnfz|crr|abbfr|rerpgvba|pebgpu(yrff)?|qrngu|chovp|^choyvp(_hfr|_ahqvgl)?$|sryyngvb|phaavyvathf|znfgheongvba|svatrevat)(_|$)".replace(
-    /[a-z]/g,
-    (m) => String.fromCharCode(((m.charCodeAt(0) + 20) % 26) + 97)
-  )
-);
-
-async function sleep(seconds: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 1000 * seconds));
-}
-
-function isBad(tag: string): boolean {
-  return badRegex.test(tag);
-}
-
-function isUnguessable(tag: string): boolean {
-  return ["one-hour_drawing_challenge", "doujinshi", "original"].includes(tag);
-}
-
-function isKancolle(tag: string): boolean {
-  return /kantai_collection|kancolle/.test(tag);
-}
-
-/**
- * Clean up underscores and parenthesis from a tag-ish input string.
- * ```
- * normalize("alice_margatroid_(pc-98)") == normalize(" Alice  Margatroid\n") == "alice margatroid"
- * normalize("shimakaze_(kantai_collection)_(cosplay)") == "shimakaze"
- * ```
- */
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/(\s*\([^)]+\))*$/g, "")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'");
-}
-
-/**
- * Return only the alphanumeric characters of a string.
- * This is used to compare guesses and answers, so that "catgirl" == "cat-girl" == "cat girl" == "catgirl?".
- */
-function alnums(s: string): string {
-  return s.replace(/\W|_/g, "");
-}
-
-async function tagWikiEmbed(tag: string): Promise<MessageEmbed | undefined> {
-  const wikiUrl = safebooruRoot + "/wiki_pages/" + tag;
-  const body = await (await fetch(wikiUrl)).buffer();
-  const document = new JSDOM(body).window.document;
-
-  // Find the first classless <p> tag that *directly* has Latin text in it.
-  const paragraph = [...document.querySelectorAll("#wiki-page-body>p")].find(
-    (p) => p.className === "" && /[a-zA-Z]/.test(p.textContent ?? "")
-  );
-  if (!paragraph || !paragraph.textContent) return undefined;
-
-  // Gotcha! Now strip parentheticals; they're mostly just Japanese names.
-  const description = paragraph.textContent.replace(/\s*\([^)]*\)/g, "");
-  console.log(description);
-  return new MessageEmbed({
-    title: tag.replace(/_/g, " "),
-    url: wikiUrl,
-    description,
-  });
-}
-
-interface BooruImage {
-  tag_string: string;
-  tag_string_artist: string;
-  tag_string_character: string;
-  tag_string_copyright: string;
-  pixiv_id?: string;
-  id: string;
-  source?: string;
-  large_file_url: string;
-  is_deleted: boolean;
-}
-
-async function getImages(
-  amount: number,
-  tag: string
-): Promise<BooruImage[] | undefined> {
-  const ids = new Set();
-  const images: BooruImage[] = [];
-  for (let retry = 0; retry < 3; retry++) {
-    try {
-      let url = new URL(safebooruRoot + "/posts.json");
-      url.searchParams.set("limit", "100");
-      url.searchParams.set("tags", tag);
-      const result = await fetch(url);
-      const candidates = (await result.json()) as BooruImage[];
-      if (!Array.isArray(candidates)) {
-        console.log("candidates not an array?", url);
-        continue;
-      }
-      shuffleArray(candidates);
-      for (const candidate of candidates) {
-        if (!candidate.large_file_url) continue;
-        if (candidate.is_deleted) continue;
-        if (candidate.tag_string.split(" ").some(isBad)) continue;
-        if (candidate.large_file_url.endsWith(".swf")) continue;
-        if (ids.has(candidate.id)) continue;
-        ids.add(candidate.id);
-        images.push(candidate);
-        if (images.length >= amount) return images;
-      }
-    } catch (e) {
-      console.log("Connection error. Retrying.", e);
-    }
-    await sleep(0.2);
-  }
-  console.log(`Ran out of tries, ${tag} must not have many images...`);
-  return undefined;
-}
-
-function commatize(names: string[]): string {
-  if (names.length <= 2) {
-    return names.join(" and ");
-  } else {
-    return names.join(", ").replace(/(.*), /, "$1 and ");
-  }
-}
-
-function creditEmbed(image: BooruImage): MessageEmbed {
-  const characters = commatize(
-    (image.tag_string_character || image.tag_string_copyright || "artwork")
-      .split(" ")
-      .slice(0, 2)
-      .map(normalize)
-  );
-  const artist = commatize(
-    (image.tag_string_artist ?? "unknown artist").split(" ").map(normalize)
-  );
-  const pixiv = image.pixiv_id;
-  const source = pixiv
-    ? `https://www.pixiv.net/artworks/${pixiv}`
-    : image.source ?? "unknown";
-  const match = source.match(/https?:\/\/(www\.)?([^/]+)/);
-  return new MessageEmbed({
-    title: `${characters} by ${artist}`.trim(),
-    url: `${safebooruRoot}/posts/${image.id}`,
-    image: { url: image.large_file_url, height: 500 },
-    fields: [
-      {
-        name: "Source",
-        value: match ? `[${match[2]}](${source})` : source,
-        inline: true,
-      },
-    ],
-  });
-}
-
 let game: Game | undefined = undefined;
-
-interface Manual {
-  master: GuildMember;
-  tag: string;
-  images: BooruImage[];
-}
-
 let manualQueue: Manual[] = [];
 
 class Game {
@@ -238,7 +61,7 @@ class Game {
     }
   }
 
-  static async startRandom(
+  static async random(
     channel: TextChannel,
     nokc: boolean = false
   ): Promise<Game> {
@@ -253,7 +76,7 @@ class Game {
     return new Game(channel, tag, images);
   }
 
-  static startManual(channel: TextChannel, manual: Manual): Game {
+  static manual(channel: TextChannel, manual: Manual): Game {
     return new Game(channel, manual.tag, manual.images, manual.master);
   }
 
@@ -339,17 +162,12 @@ class Game {
         n === 1 ? "There is 1 manual tag" : `There are ${n} manual tags`;
       await this.channel.send(
         thereAreTags +
-          " left in the queue! Use `/start` to play the next one, or `/manual` to queue up a tag.\n" +
-          "The next tag in the queue was picked by **" +
-          manualQueue[0].master.displayName +
-          "**."
+          " left in the queue! Type `/start` to play the next one, or `/manual` to queue up a tag.\n" +
+          `The next tag in the queue was picked by **${manualQueue[0].master.displayName}**.`
       );
     } else {
       await this.channel.send(
-        "Type `/start` to play another game, or `/manual` to choose a tag for others to guess." +
-          (isKancolle(this.tag)
-            ? "\n(Tired of ship girls? Try `/start nokc` to play without Kantai Collection tags.)"
-            : "")
+        "Type `/start` to play another game, or `/manual` to choose a tag for others to guess."
       );
     }
 
@@ -366,95 +184,6 @@ class Game {
     return this.answers.some((a) => alnums(a) === guessAlnums);
   }
 }
-//////
-
-function env(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`No environment variable ${key} set.`);
-  return value;
-}
-
-const clientId = env("KOAKUMA_CLIENT_ID");
-const guildId = env("KOAKUMA_GUILD");
-const commandRoute = Routes.applicationGuildCommands(clientId, guildId);
-const commands: ApplicationCommandData[] = [
-  {
-    name: "start",
-    description: "Start a game with a random tag.",
-    options: [
-      {
-        name: "nokc",
-        description: "Exclude Kantai Collection tags.",
-        type: 5, // boolean
-        required: false,
-      },
-    ],
-  },
-  {
-    name: "manual",
-    description: "Hand-pick a tag for others to play with.",
-    options: [
-      {
-        name: "tag",
-        description: "The tag to play with",
-        type: 3, // string
-        required: true,
-      },
-    ],
-  },
-  {
-    name: "scores",
-    description: "Show the scoreboard.",
-  },
-  {
-    name: "show",
-    description: "Show a random image with the given tag(s).",
-    options: [
-      {
-        name: "tag",
-        description: "A tag to search for.",
-        type: 3, // string
-        required: true,
-      },
-      {
-        name: "tag2",
-        description: "A second tag to search for.",
-        type: 3, // string
-        required: false,
-      },
-      {
-        name: "tag3",
-        description: "A third tag to search for.",
-        type: 3, // string
-        required: false,
-      },
-      {
-        name: "tag4",
-        description: "A fourth tag to search for.",
-        type: 3, // string
-        required: false,
-      },
-    ],
-  },
-  {
-    name: "wiki",
-    description: "Look up the wiki entry for a tag.",
-    options: [
-      {
-        name: "tag",
-        description: "A tag to search for.",
-        type: 3, // string
-        required: true,
-      },
-    ],
-  },
-];
-
-const koakumaToken = env("KOAKUMA_TOKEN");
-const rest = new REST({ version: "9" }).setToken(koakumaToken);
-
-console.log("Registering commands...");
-rest.put(commandRoute, { body: commands });
 
 const client = new Client({
   intents: [
@@ -464,41 +193,36 @@ const client = new Client({
   ],
 });
 
-async function gameChannelSuggestion(guild: Guild): Promise<string> {
-  const channels = await guild.channels.fetch(undefined, { cache: true });
-  let mentions = [];
-  for (const c of channels.values()) {
-    if (c.isText() && gameChannelNames.includes(c.name))
-      mentions.push(`<#${c.id}>`);
-  }
-  return "Let's play somewhere else: " + mentions.join(" ");
-}
-
 client.on("ready", () => {
   console.log(`Logged in as ${client?.user?.tag}! Loaded ${tags.length} tags.`);
 });
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
-  if (interaction.channel?.type !== "GUILD_TEXT") return;
+  const { channel, guild, options } = interaction;
+  if (!channel) return;
+  if (!channel.isText()) return;
   if (!interaction.member) return;
 
   switch (interaction.commandName) {
     case "start": {
-      if (!interaction.guild) return;
-      if (!gameChannelNames.includes(interaction.channel.name)) {
-        await interaction.reply(await gameChannelSuggestion(interaction.guild));
+      if (channel.type !== "GUILD_TEXT") return;
+      if (!guild) return;
+      if (!gameChannelNames.includes(channel.name)) {
+        await interaction.reply(await gameChannelSuggestion(guild));
         return;
       }
+      const nokc = options.getBoolean("nokc") === true;
       await interaction.deferReply();
-      game = await Game.startRandom(interaction.channel);
+      game = await Game.random(channel, nokc);
       await interaction.editReply(game.start());
       break;
     }
     case "manual": {
-      if (!interaction.guild) return;
-      if (!gameChannelNames.includes(interaction.channel.name)) {
-        await interaction.reply(await gameChannelSuggestion(interaction.guild));
+      if (channel.type !== "GUILD_TEXT") return;
+      if (!guild) return;
+      if (!gameChannelNames.includes(channel.name)) {
+        await interaction.reply(await gameChannelSuggestion(guild));
         return;
       }
       if (game?.gameMaster?.id === interaction.user.id) {
@@ -517,14 +241,12 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
       await interaction.deferReply({ ephemeral: true });
-      const tagOption = interaction.options.get("tag", true);
-      let tag = String(tagOption.value).replace(/\s+/g, "_");
+      let tag = options.getString("tag", true).replace(/\s+/g, "_");
       let pre = "";
       const common = aliasOf.get(tag);
       if (common) {
-        pre = `(That's just an alias of ${mono(
-          normalize(common)
-        )}, so I'm using that.)\n`;
+        const it = mono(normalize(common));
+        pre = `(That's just an alias of ${it}, so I'm using that.)\n`;
         tag = common;
       }
       const images = await getImages(imagesPerGame, tag);
@@ -548,8 +270,8 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.editReply(pre + "I'll use your tag after this game.");
       } else {
         await interaction.editReply(pre + "Starting a game with your tag!");
-        game = Game.startManual(interaction.channel, manual);
-        await interaction.channel.send(game.start());
+        game = Game.manual(channel, manual);
+        await channel.send(game.start());
       }
       break;
     }
@@ -557,8 +279,8 @@ client.on("interactionCreate", async (interaction) => {
       await interaction.deferReply();
       let tags: string[] = [];
       for (const k of ["tag", "tag2", "tag3", "tag4"]) {
-        const tag = interaction.options.get(k)?.value;
-        if (tag) tags.push(String(tag).replace(/\s+/g, "_"));
+        const tag = options.getString(k);
+        if (tag) tags.push(tag.replace(/\s+/g, "_"));
       }
       const images = await getImages(1, tags.join(" "));
       if (images) {
@@ -573,8 +295,7 @@ client.on("interactionCreate", async (interaction) => {
     }
     case "wiki": {
       await interaction.deferReply();
-      const tagOption = interaction.options.get("tag", true);
-      const tag = String(tagOption.value).replace(/\s+/g, "_");
+      const tag = options.getString("tag", true).replace(/\s+/g, "_");
       const embed = await tagWikiEmbed(tag);
       if (embed) {
         await interaction.editReply({
@@ -602,4 +323,7 @@ client.on("messageCreate", processGuess);
 client.on("messageEdit", processGuess);
 
 console.log("Logging in...");
+
+registerCommands();
+const koakumaToken = env("KOAKUMA_TOKEN");
 client.login(koakumaToken);
