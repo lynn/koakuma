@@ -12,6 +12,9 @@ GAME_CHANNELS = ['games']
 TOP_N = 10
 TIE_SECONDS = 0.5
 
+DANBOORU_USER = os.getenv('KOAKUMA_DANBOORU_USER')
+DANBOORU_API_KEY = os.getenv('KOAKUMA_DANBOORU_API_KEY')
+
 redis_url = os.getenv('KOAKUMA_REDIS_URL')
 ri = None
 if redis_url:
@@ -67,7 +70,10 @@ def get_images(amount, tag):
     images = []
     for retry in range(3):
         try:
-            js = requests.get(ROOT + '/posts.json', params={'limit': 50, 'random': 'true', 'tags': tag}).json()
+            req = requests.get(ROOT + '/posts.json',
+                    auth=(DANBOORU_USER, DANBOORU_API_KEY) if DANBOORU_API_KEY else None,
+                    params={'limit': 50, 'random': 'true', 'tags': tag})
+            js = req.json()
             for j in js:
                 if 'large_file_url' not in j: continue
                 if j['is_deleted']: continue
@@ -88,7 +94,7 @@ def credit(image):
     artist = (image['tag_string_artist'] or 'unknown').replace(' ', ', ').replace('_', ' ')
     pixiv = image['pixiv_id']
     source = f"https://www.pixiv.net/artworks/{pixiv}" if pixiv else image['source']
-    source = f"<{source}>\n" if source else ""
+    source = "" if not source else f"<{source}>\n" if source.startswith("http") else f"Source: {source}\n"
     return f"<{ROOT}/posts/{image['id']}> by **{artist}**\n{source}{image['large_file_url']}"
 
 class Game:
@@ -157,7 +163,7 @@ class Game:
 
     async def show_winner(self, member):
         async with self.winner_lock:
-            if member is not None:  # (None here means nobody got it in time.)
+            if member:  # (None here means nobody got it in time.)
                 # Can't win a game twice:
                 if member in self.winners: return
                 self.winners.append(member)
@@ -168,10 +174,13 @@ class Game:
                     ri.zincrby('leaderboard', 1, member.id)
 
             # Format a message about the outcome of the game.
-            real_winners = [w for w in self.winners if w != self.game_master]
-            subjects, verb = (real_winners, "got it") if real_winners else (self.winners, "gave it away") if self.winners else ("Nobody", "got it")
-            names = re.sub(r"(.*), ", r"\1 and ", ", ".join(m.display_name for m in subjects))
-            message = f"{names} {verb}! The answer was **`{self.pretty_tag}`**."
+            outcome = "Nobody got it"
+            if self.winners:
+                real_winners = [w for w in self.winners if w != self.game_master]
+                subjects, verb = (real_winners, "got it") if real_winners else (self.winners, "gave it away") if self.winners else ("Nobody", "got it")
+                names = re.sub(r"(.*), ", r"\1 and ", ", ".join(m.display_name for m in subjects))
+                outcome = f"{names} {verb}"
+            message = f"{outcome}! The answer was **`{self.pretty_tag}`**."
 
             if self.winner_message:
                 await self.winner_message.edit(content=message)

@@ -1,17 +1,19 @@
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import {
+  ApplicationCommandData,
   Client,
+  Guild,
+  GuildMember,
   Intents,
+  Message,
   MessageEmbed,
   TextChannel,
-  GuildMember,
-  Message,
 } from "discord.js";
 import { readFileSync } from "fs";
-import fetch from "node-fetch";
 import { JSDOM } from "jsdom";
-import { URL, URLSearchParams } from "url";
+import fetch from "node-fetch";
+import { URL } from "url";
 
 const safebooruRoot = "https://safebooru.donmai.us";
 // const imagesPerGame = 9;
@@ -24,7 +26,14 @@ const gameChannelNames = ["games"];
 const topN = 10;
 const tieSeconds = 0.5;
 
+console.log("Loading aliases...");
 const aliases: Record<string, string[]> = require("./aliases.json");
+let aliasOf: Map<string, string> = new Map();
+for (const [k, vs] of Object.entries(aliases)) {
+  for (const v of vs) aliasOf.set(v, k);
+}
+
+console.log("Loading tags...");
 const tags = readFileSync("./tags.txt").toString().trimEnd().split("\n");
 
 function shuffleArray<T>(array: T[]) {
@@ -112,7 +121,9 @@ async function tagWikiEmbed(tag: string): Promise<MessageEmbed | undefined> {
 
 interface BooruImage {
   tag_string: string;
-  tag_string_artist?: string;
+  tag_string_artist: string;
+  tag_string_character: string;
+  tag_string_copyright: string;
   pixiv_id?: string;
   id: string;
   source?: string;
@@ -133,14 +144,18 @@ async function getImages(
       url.searchParams.set("tags", tag);
       const result = await fetch(url);
       const candidates = (await result.json()) as BooruImage[];
+      if (!Array.isArray(candidates)) {
+        console.log("candidates not an array?", url);
+        continue;
+      }
       shuffleArray(candidates);
       for (const candidate of candidates) {
-        if (!candidate["large_file_url"]) continue;
-        if (candidate["is_deleted"]) continue;
-        if (candidate["tag_string"].split(" ").some(isBad)) continue;
-        if (candidate["large_file_url"].endsWith(".swf")) continue;
-        if (candidate["id"] in ids) continue;
-        ids.add(candidate["id"]);
+        if (!candidate.large_file_url) continue;
+        if (candidate.is_deleted) continue;
+        if (candidate.tag_string.split(" ").some(isBad)) continue;
+        if (candidate.large_file_url.endsWith(".swf")) continue;
+        if (ids.has(candidate.id)) continue;
+        ids.add(candidate.id);
         images.push(candidate);
         if (images.length >= amount) return images;
       }
@@ -149,20 +164,45 @@ async function getImages(
     }
     await sleep(0.2);
   }
-  console.log("Ran out of tries, the given tag must not have many images...");
+  console.log(`Ran out of tries, ${tag} must not have many images...`);
   return undefined;
 }
 
-function credit(image: BooruImage) {
-  const artist = (image["tag_string_artist"] ?? "unknown")
-    .replace(/\s/g, ", ")
-    .replace(/_/g, " ");
-  const pixiv = image["pixiv_id"];
+function commatize(names: string[]): string {
+  if (names.length <= 2) {
+    return names.join(" and ");
+  } else {
+    return names.join(", ").replace(/(.*), /, "$1 and ");
+  }
+}
+
+function creditEmbed(image: BooruImage): MessageEmbed {
+  const characters = commatize(
+    (image.tag_string_character || image.tag_string_copyright || "artwork")
+      .split(" ")
+      .slice(0, 2)
+      .map(normalize)
+  );
+  const artist = commatize(
+    (image.tag_string_artist ?? "unknown artist").split(" ").map(normalize)
+  );
+  const pixiv = image.pixiv_id;
   const source = pixiv
     ? `https://www.pixiv.net/artworks/${pixiv}`
-    : image["source"];
-  const sourceLink = source ? `<${source}>\n` : "";
-  return `<${safebooruRoot}/posts/${image["id"]}> by **${artist}**\n${sourceLink}${image["large_file_url"]}`;
+    : image.source ?? "unknown";
+  const match = source.match(/https?:\/\/(www\.)?([^/]+)/);
+  return new MessageEmbed({
+    title: `${characters} by ${artist}`.trim(),
+    url: `${safebooruRoot}/posts/${image.id}`,
+    image: { url: image.large_file_url, height: 500 },
+    fields: [
+      {
+        name: "Source",
+        value: match ? `[${match[2]}](${source})` : source,
+        inline: true,
+      },
+    ],
+  });
 }
 
 let game: Game | undefined = undefined;
@@ -175,37 +215,20 @@ interface Manual {
 
 let manualQueue: Manual[] = [];
 
-interface RanManual {
-  time: Date;
-  channel: TextChannel;
-}
-
-let ranManual: Map<GuildMember["id"], RanManual> = new Map();
-
-function recentlyRanManual(
-  authorId: GuildMember["id"]
-): TextChannel | undefined {
-  const rm = ranManual.get(authorId);
-  if (!rm) return undefined;
-  const tenMinutesAgo = new Date().getTime() - 10 * 60 * 1e3;
-  return rm.time.getTime() > tenMinutesAgo ? rm.channel : undefined;
-}
-
 class Game {
   static tagIndex: number = 0;
   private winners: GuildMember[] = [];
-  private winnerMessage: Message | undefined = undefined;
   private imageMessages: Message[] = [];
   private answer: string;
   private answers: string[];
-  private finished: boolean = false;
+  public finished: boolean = false;
   private prettyTag: string;
 
   constructor(
     private channel: TextChannel,
     private tag: string,
     private images: BooruImage[],
-    private gameMaster: GuildMember | undefined = undefined
+    public gameMaster: GuildMember | undefined = undefined
   ) {
     this.prettyTag = tag.replace(/_/g, " ");
     this.answer = normalize(tag);
@@ -234,12 +257,19 @@ class Game {
     return new Game(channel, manual.tag, manual.images, manual.master);
   }
 
-  async play(): Promise<void> {
+  start(): string {
     let intro = "Find the common tag between these images:";
     if (this.gameMaster) {
       intro = `This tag was picked by <@${this.gameMaster.user.id}>!\n${intro}`;
     }
-    await this.channel.send(intro);
+    this.play();
+    return intro;
+  }
+
+  private async play(): Promise<void> {
+    // A little "comfort pause".
+    await sleep(1.5);
+
     for (const image of this.images) {
       this.imageMessages.push(await this.channel.send(image.large_file_url));
       await sleep(secondsBetweenImages);
@@ -281,56 +311,59 @@ class Game {
       //     ri.zincrby('leaderboard', 1, member.id)
     }
 
-    // Format a message about the outcome of the game.
+    // Wait for ties to reach here
+    await sleep(tieSeconds);
+    if (this.finished) return;
+    this.finished = true;
 
+    // Format a message about the outcome of the game.
     const realWinners = this.winners.filter((w) => w !== this.gameMaster);
-    const namesString = (ms: GuildMember[]) =>
-      ms
-        .map((m) => m.displayName)
-        .join(", ")
-        .replace(/(.*), /, "$1 and ");
     const [subjects, verb] =
       realWinners.length > 0
-        ? [namesString(realWinners), "got it"]
+        ? [commatize(realWinners.map((m) => m.displayName)), "got it"]
         : this.winners.length > 0
-        ? [namesString(this.winners), "gave it away"]
+        ? [commatize(this.winners.map((m) => m.displayName)), "gave it away"]
         : ["Nobody", "got it"];
     const message = `${subjects} ${verb}! The answer was ${mono(
       this.prettyTag
     )}.`;
 
-    if (this.winnerMessage) {
-      await this.winnerMessage.edit(message);
+    const wikiEmbed = await tagWikiEmbed(this.tag);
+    await this.channel.send({
+      content: message,
+      embeds: wikiEmbed ? [wikiEmbed] : [],
+    });
+    const n = manualQueue.length;
+    if (n > 0) {
+      const thereAreTags =
+        n === 1 ? "There is 1 manual tag" : `There are ${n} manual tags`;
+      await this.channel.send(
+        thereAreTags +
+          " left in the queue! Use `/start` to play the next one, or `/manual` to queue up a tag.\n" +
+          "The next tag in the queue was picked by **" +
+          manualQueue[0].master.displayName +
+          "**."
+      );
     } else {
-      const wikiEmbed = await tagWikiEmbed(this.tag);
-      this.winnerMessage = await this.channel.send({
-        content: message,
-        embeds: wikiEmbed ? [wikiEmbed] : [],
-      });
-      const n = manualQueue.length;
-      if (n > 0) {
-        const thereAreTags =
-          n === 1 ? "There is 1 manual tag" : `There are ${n} manual tags`;
-        await this.channel.send(
-          thereAreTags +
-            " left in the queue! Type `!start` to play the next one, or `!manual` to queue up a tag.\n" +
-            "The next tag in the queue was picked by **" +
-            manualQueue[0].master.displayName +
-            "**."
-        );
-      } else {
-        await this.channel.send(
-          "Type `!start` to play another game, or `!manual` to choose a tag for others to guess." +
-            (isKancolle(this.tag)
-              ? "\n(Tired of ship girls? Try `!start nokc` to play without Kantai Collection tags.)"
-              : "")
-        );
-      }
+      await this.channel.send(
+        "Type `/start` to play another game, or `/manual` to choose a tag for others to guess." +
+          (isKancolle(this.tag)
+            ? "\n(Tired of ship girls? Try `/start nokc` to play without Kantai Collection tags.)"
+            : "")
+      );
     }
 
     for (let i = 0; i < this.images.length; i++) {
-      await this.imageMessages[i].edit(credit(this.images[i]));
+      await this.imageMessages[i].edit({
+        content: "_ _",
+        embeds: [creditEmbed(this.images[i])],
+      });
     }
+  }
+
+  isCorrect(guess: string): boolean {
+    const guessAlnums = alnums(guess);
+    return this.answers.some((a) => alnums(a) === guessAlnums);
   }
 }
 //////
@@ -344,20 +377,102 @@ function env(key: string): string {
 const clientId = env("KOAKUMA_CLIENT_ID");
 const guildId = env("KOAKUMA_GUILD");
 const commandRoute = Routes.applicationGuildCommands(clientId, guildId);
-const commands = [
+const commands: ApplicationCommandData[] = [
   {
     name: "start",
     description: "Start a game with a random tag.",
+    options: [
+      {
+        name: "nokc",
+        description: "Exclude Kantai Collection tags.",
+        type: 5, // boolean
+        required: false,
+      },
+    ],
+  },
+  {
+    name: "manual",
+    description: "Hand-pick a tag for others to play with.",
+    options: [
+      {
+        name: "tag",
+        description: "The tag to play with",
+        type: 3, // string
+        required: true,
+      },
+    ],
+  },
+  {
+    name: "scores",
+    description: "Show the scoreboard.",
+  },
+  {
+    name: "show",
+    description: "Show a random image with the given tag(s).",
+    options: [
+      {
+        name: "tag",
+        description: "A tag to search for.",
+        type: 3, // string
+        required: true,
+      },
+      {
+        name: "tag2",
+        description: "A second tag to search for.",
+        type: 3, // string
+        required: false,
+      },
+      {
+        name: "tag3",
+        description: "A third tag to search for.",
+        type: 3, // string
+        required: false,
+      },
+      {
+        name: "tag4",
+        description: "A fourth tag to search for.",
+        type: 3, // string
+        required: false,
+      },
+    ],
+  },
+  {
+    name: "wiki",
+    description: "Look up the wiki entry for a tag.",
+    options: [
+      {
+        name: "tag",
+        description: "A tag to search for.",
+        type: 3, // string
+        required: true,
+      },
+    ],
   },
 ];
 
 const koakumaToken = env("KOAKUMA_TOKEN");
 const rest = new REST({ version: "9" }).setToken(koakumaToken);
+
+console.log("Registering commands...");
 rest.put(commandRoute, { body: commands });
 
 const client = new Client({
-  intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS],
+  intents: [
+    Intents.FLAGS.GUILDS,
+    Intents.FLAGS.GUILD_MEMBERS,
+    Intents.FLAGS.GUILD_MESSAGES,
+  ],
 });
+
+async function gameChannelSuggestion(guild: Guild): Promise<string> {
+  const channels = await guild.channels.fetch(undefined, { cache: true });
+  let mentions = [];
+  for (const c of channels.values()) {
+    if (c.isText() && gameChannelNames.includes(c.name))
+      mentions.push(`<#${c.id}>`);
+  }
+  return "Let's play somewhere else: " + mentions.join(" ");
+}
 
 client.on("ready", () => {
   console.log(`Logged in as ${client?.user?.tag}! Loaded ${tags.length} tags.`);
@@ -365,18 +480,126 @@ client.on("ready", () => {
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
+  if (interaction.channel?.type !== "GUILD_TEXT") return;
+  if (!interaction.member) return;
 
-  if (interaction.commandName === "start") {
-    if (interaction.channel?.type !== "GUILD_TEXT") return;
-    game = await Game.startRandom(interaction.channel);
-    game.play();
-    interaction.reply("Starting a random-tag game.");
+  switch (interaction.commandName) {
+    case "start": {
+      if (!interaction.guild) return;
+      if (!gameChannelNames.includes(interaction.channel.name)) {
+        await interaction.reply(await gameChannelSuggestion(interaction.guild));
+        return;
+      }
+      await interaction.deferReply();
+      game = await Game.startRandom(interaction.channel);
+      await interaction.editReply(game.start());
+      break;
+    }
+    case "manual": {
+      if (!interaction.guild) return;
+      if (!gameChannelNames.includes(interaction.channel.name)) {
+        await interaction.reply(await gameChannelSuggestion(interaction.guild));
+        return;
+      }
+      if (game?.gameMaster?.id === interaction.user.id) {
+        await interaction.reply({
+          content: "Let's wait for your game to finish.",
+          ephemeral: true,
+        });
+        return;
+      } else if (
+        manualQueue.some((m) => m.master.user.id === interaction.user.id)
+      ) {
+        await interaction.reply({
+          content: "You're already in the queue.",
+          ephemeral: true,
+        });
+        return;
+      }
+      await interaction.deferReply({ ephemeral: true });
+      const tagOption = interaction.options.get("tag", true);
+      let tag = String(tagOption.value).replace(/\s+/g, "_");
+      let pre = "";
+      const common = aliasOf.get(tag);
+      if (common) {
+        pre = `(That's just an alias of ${mono(
+          normalize(common)
+        )}, so I'm using that.)\n`;
+        tag = common;
+      }
+      const images = await getImages(imagesPerGame, tag);
+      if (!images) {
+        interaction.editReply(
+          pre + "Sorry, that tag doesn't have enough results."
+        );
+        return;
+      }
+      const master = interaction.member as GuildMember;
+      const manual = { master, tag, images };
+      const n = manualQueue.length;
+      if (n > 0) {
+        const areTags = n === 1 ? `is ${n} tag` : `are ${n} tags`;
+        manualQueue.push(manual);
+        await interaction.editReply(
+          `${pre}I added your tag to the queue. There ${areTags} ahead of yours.`
+        );
+      } else if (game && !game.finished) {
+        manualQueue.push(manual);
+        await interaction.editReply(pre + "I'll use your tag after this game.");
+      } else {
+        await interaction.editReply(pre + "Starting a game with your tag!");
+        game = Game.startManual(interaction.channel, manual);
+        await interaction.channel.send(game.start());
+      }
+      break;
+    }
+    case "show": {
+      await interaction.deferReply();
+      let tags: string[] = [];
+      for (const k of ["tag", "tag2", "tag3", "tag4"]) {
+        const tag = interaction.options.get(k)?.value;
+        if (tag) tags.push(String(tag).replace(/\s+/g, "_"));
+      }
+      const images = await getImages(1, tags.join(" "));
+      if (images) {
+        await interaction.editReply({
+          content: `Here's what I found for ${mono(tags.join(" "))}:`,
+          embeds: [creditEmbed(images[0])],
+        });
+      } else {
+        await interaction.editReply("Sorry, no results.");
+      }
+      break;
+    }
+    case "wiki": {
+      await interaction.deferReply();
+      const tagOption = interaction.options.get("tag", true);
+      const tag = String(tagOption.value).replace(/\s+/g, "_");
+      const embed = await tagWikiEmbed(tag);
+      if (embed) {
+        await interaction.editReply({
+          content: `Here's what I found:`,
+          embeds: [embed],
+        });
+      } else {
+        await interaction.editReply(`Sorry, no results for ${mono(tag)}.`);
+      }
+      break;
+    }
+    case "scores": {
+      break;
+    }
   }
 });
 
-async function processGuess(message: Message): Promise<void> {}
+async function processGuess(message: Message): Promise<void> {
+  if (message.member && game && game.isCorrect(message.content)) {
+    game.reveal(message.member);
+  }
+}
 
 client.on("messageCreate", processGuess);
 client.on("messageEdit", processGuess);
 
+console.log("Logging in...");
 client.login(koakumaToken);
