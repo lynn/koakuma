@@ -25,9 +25,14 @@ export async function scoreboard(interaction: Interaction): Promise<string> {
       let mrank = -1;
       const ranked: Array<[number, GuildMember, number]> = [];
       for (let i = 0; 2 * i < scores.length; i++) {
-        const member = await interaction.guild!.members.fetch(scores[2 * i]);
+        let member;
+        try {
+          member = await interaction.guild!.members.fetch(scores[2 * i]);
+          if (!member) continue;
+        } catch (e) {
+          continue;
+        }
         const score = Number(scores[2 * i + 1]);
-        if (!member) continue;
         const rank = score === last_score ? last_i + 1 : i + 1;
         if (interaction.user?.id === member.id) mrank = rank;
         ranked.push([rank, member, score]);

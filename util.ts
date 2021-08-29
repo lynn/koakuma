@@ -136,7 +136,7 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
 }
 
 export async function gameChannelSuggestion(guild: Guild): Promise<string> {
-  const channels = await guild.channels.fetch(undefined, { cache: true });
+  const channels = await guild.channels.fetch();
   let mentions = [];
   for (const c of channels.values()) {
     if (c.isText() && gameChannelNames.includes(c.name))

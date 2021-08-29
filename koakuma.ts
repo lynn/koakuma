@@ -167,9 +167,8 @@ class Game {
       );
     }
 
-    for (let i = 0; i < this.images.length; i++) {
+    for (let i = 0; i < this.imageMessages.length; i++) {
       await this.imageMessages[i].edit({
-        content: "_ _",
         embeds: [creditEmbed(this.images[i])],
       });
     }
@@ -319,6 +318,7 @@ async function processGuess(message: Message): Promise<void> {
 
 client.on("messageCreate", processGuess);
 client.on("messageEdit", processGuess);
+client.on("error", console.error);
 
 registerCommands();
 console.log("Logging in...");
