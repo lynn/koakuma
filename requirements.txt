@@ -1,3 +1,0 @@
-discord.py>=1.4.1
-lxml>=3
-requests>=2
