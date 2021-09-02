@@ -220,7 +220,7 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.reply(await gameChannelSuggestion(guild));
         return;
       }
-      if (game?.gameMaster?.id === interaction.user.id) {
+      if (game && game.gameMaster?.id === interaction.user.id && !game.finished) {
         await interaction.reply({
           content: "Let's wait for your game to finish.",
           ephemeral: true,
@@ -278,13 +278,14 @@ client.on("interactionCreate", async (interaction) => {
         if (tag) tags.push(tag.replace(/\s+/g, "_"));
       }
       const images = await getImages(1, tags.join(" "));
+      const query = mono(tags.join(" "));
       if (images) {
         await interaction.editReply({
-          content: `Here's what I found for ${mono(tags.join(" "))}:`,
+          content: `Here's what I found for ${query}:`,
           embeds: [creditEmbed(images[0])],
         });
       } else {
-        await interaction.editReply("Sorry, no results.");
+        await interaction.editReply(`Sorry, no results for ${query}.`);
       }
       break;
     }
