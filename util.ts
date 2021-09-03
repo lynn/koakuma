@@ -67,7 +67,7 @@ export function normalize(s: string): string {
  * This is used to compare guesses and answers, so that "catgirl" == "cat-girl" == "cat girl" == "catgirl?".
  */
 export function alnums(s: string): string {
-  return s.replace(/\W|_/g, "");
+  return s.replace(/\W|_/g, "").toLowerCase();
 }
 
 /**
