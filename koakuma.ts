@@ -209,7 +209,10 @@ client.on("interactionCreate", async (interaction) => {
       }
       const nokc = options.getBoolean("nokc") === true;
       await interaction.deferReply();
-      game = await Game.random(channel, nokc);
+      const manual = manualQueue.shift();
+      const newGame = manual ? Game.manual(channel, manual) : await Game.random(channel, nokc);
+      if (game && !game.finished) { await interaction.editReply("There's still an active game."); break; }
+      game = newGame;
       await interaction.editReply(game.start());
       break;
     }
