@@ -9,8 +9,15 @@ if (process.env.KOAKUMA_REDIS_URL) {
   client = createClient(process.env.KOAKUMA_REDIS_URL);
 }
 
-export function awardPoint(userId: string) {
-  client?.zincrby(table, 1, userId);
+/// Award a point and return the new score.
+export async function awardPoint(userId: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    client === undefined
+      ? resolve(0)
+      : client.zincrby(table, 1, userId, (err, reply) => {
+          err ? reject(err) : resolve(Number(reply));
+        });
+  });
 }
 
 export async function scoreboard(interaction: Interaction): Promise<string> {

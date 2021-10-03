@@ -1,4 +1,11 @@
-import { Client, GuildMember, Intents, Message, TextChannel } from "discord.js";
+import {
+  Client,
+  GuildMember,
+  Intents,
+  Message,
+  PartialMessage,
+  TextChannel,
+} from "discord.js";
 import { readFileSync } from "fs";
 import { registerCommands } from "./commands";
 import {
@@ -100,14 +107,14 @@ class Game {
 
     // Slowly unmask the answer.
     const censored = this.answer.replace(/\w/g, "●");
-    const lengths = censored.split(/\s+/).map((w) => w.length);
+    const lengths = censored.split(/\s+/).map((w) => w.split("●").length - 1);
     let mask = [...censored];
     let indices = mask.flatMap((x, i) => (x === "●" ? [i] : []));
     let lengthHint = ` (${lengths.join(", ")})`;
     shuffleArray(indices);
     for (let i = indices.length - 1; i >= 0; i--) {
       if (i < 15 || i % 2 === 0) {
-        await this.channel.send(`Hint: ${mono(mask.join(""))}${lengthHint}`);
+        await this.channel.send("Hint: " + mono(mask.join("")) + lengthHint);
         lengthHint = "";
         await sleep(secondsBetweenHints);
         if (this.finished || this.winners.length) return;
@@ -120,14 +127,16 @@ class Game {
 
   async reveal(member: GuildMember | undefined) {
     if (this.finished) return;
+    let newScorePromise: Promise<number> | undefined = undefined;
 
     if (member !== undefined) {
       // Can't win a game twice:
       if (this.winners.includes(member)) return;
       this.winners.push(member);
       // Don't award points for giving manual tags away:
-      if (member.user.id !== this.gameMaster?.user?.id)
-        awardPoint(member.user.id);
+      if (member.user.id !== this.gameMaster?.user?.id) {
+        newScorePromise = awardPoint(member.user.id);
+      }
     }
 
     // Wait for ties to reach here
@@ -165,6 +174,17 @@ class Game {
       await this.channel.send(
         "Type `/start` to play another game, or `/manual` to choose a tag for others to guess."
       );
+    }
+
+    if (member !== undefined && newScorePromise !== undefined) {
+      const newScore = await newScorePromise;
+      if (newScore > 0 && newScore % 500 >= 0) {
+        const celebrationImage = await getImages(1, "dancing animated_gif");
+        this.channel.send({
+          content: `🎉 That was ${member.displayName}'s **${newScore}th** win! 🎉`,
+          embeds: celebrationImage ? [creditEmbed(celebrationImage[0])] : [],
+        });
+      }
     }
 
     for (let i = 0; i < this.imageMessages.length; i++) {
@@ -210,8 +230,13 @@ client.on("interactionCreate", async (interaction) => {
       const nokc = options.getBoolean("nokc") === true;
       await interaction.deferReply();
       const manual = manualQueue.shift();
-      const newGame = manual ? Game.manual(channel, manual) : await Game.random(channel, nokc);
-      if (game && !game.finished) { await interaction.editReply("There's still an active game."); break; }
+      const newGame = manual
+        ? Game.manual(channel, manual)
+        : await Game.random(channel, nokc);
+      if (game && !game.finished) {
+        await interaction.editReply("There's still an active game.");
+        break;
+      }
       game = newGame;
       await interaction.editReply(game.start());
       break;
@@ -223,7 +248,11 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.reply(await gameChannelSuggestion(guild));
         return;
       }
-      if (game && game.gameMaster?.id === interaction.user.id && !game.finished) {
+      if (
+        game &&
+        game.gameMaster?.id === interaction.user.id &&
+        !game.finished
+      ) {
         await interaction.reply({
           content: "Let's wait for your game to finish.",
           ephemeral: true,
@@ -314,8 +343,9 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-async function processGuess(message: Message): Promise<void> {
+async function processGuess(message: Message | PartialMessage): Promise<void> {
   const { member, content } = message;
+  if (!content) return;
   if (/^!\w+/.test(content)) {
     const fixed = content.replace(/!/, "/").replace(/ .*/, "");
     message.reply(`I use slash-commands now. Try typing **${fixed}**!`);
@@ -325,7 +355,7 @@ async function processGuess(message: Message): Promise<void> {
 }
 
 client.on("messageCreate", processGuess);
-client.on("messageEdit", processGuess);
+client.on("messageUpdate", (_, after) => processGuess(after));
 client.on("error", console.error);
 process.on("unhandledRejection", console.error);
 

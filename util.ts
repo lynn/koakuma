@@ -25,7 +25,7 @@ export function shuffleArray<T>(array: T[]) {
 }
 
 export function mono(s: string): string {
-  return "**`" + s + "`**";
+  return "**`" + s.replace(/`/g, "") + "`**";
 }
 
 export async function sleep(seconds: number): Promise<void> {
