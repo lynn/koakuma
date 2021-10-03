@@ -178,7 +178,7 @@ class Game {
 
     if (member !== undefined && newScorePromise !== undefined) {
       const newScore = await newScorePromise;
-      if (newScore > 0 && newScore % 500 >= 0) {
+      if (newScore > 0 && newScore % 500 === 0) {
         const celebrationImage = await getImages(1, "dancing animated_gif");
         this.channel.send({
           content: `🎉 That was ${member.displayName}'s **${newScore}th** win! 🎉`,
