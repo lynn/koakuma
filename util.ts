@@ -86,7 +86,8 @@ export async function tagWikiEmbed(
 ): Promise<MessageEmbed | undefined> {
   const wikiUrl = safebooruRoot + "/wiki_pages/" + tag;
   const body = await (await fetch(wikiUrl)).buffer();
-  const document = new JSDOM(body).window.document;
+  const contentType = "text/html;charset=utf-8";
+  const document = new JSDOM(body, { contentType }).window.document;
 
   // Find the first classless <p> tag that *directly* has Latin text in it.
   const paragraph = [...document.querySelectorAll("#wiki-page-body>p")].find(
