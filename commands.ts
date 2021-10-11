@@ -13,14 +13,7 @@ const commands: ApplicationCommandData[] = [
   {
     name: "start",
     description: "Start a game with a random tag.",
-    options: [
-      {
-        name: "nokc",
-        description: "Exclude Kantai Collection tags.",
-        type: booleanType,
-        required: false,
-      },
-    ],
+    options: [],
   },
   {
     name: "manual",

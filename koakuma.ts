@@ -67,10 +67,7 @@ class Game {
     }
   }
 
-  static async random(
-    channel: TextChannel,
-    nokc: boolean = false
-  ): Promise<Game> {
+  static async random(channel: TextChannel): Promise<Game> {
     let images: BooruImage[] | undefined = undefined;
     let tag: string;
     do {
@@ -227,12 +224,11 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.reply(await gameChannelSuggestion(guild));
         return;
       }
-      const nokc = options.getBoolean("nokc") === true;
       await interaction.deferReply();
       const manual = manualQueue.shift();
       const newGame = manual
         ? Game.manual(channel, manual)
-        : await Game.random(channel, nokc);
+        : await Game.random(channel);
       if (game && !game.finished) {
         await interaction.editReply("There's still an active game.");
         break;
