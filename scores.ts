@@ -27,11 +27,11 @@ export async function scoreboard(interaction: Interaction): Promise<string> {
       return;
     }
     client.zrevrange(table, 0, -1, "withscores", async (error, scores) => {
-      let last_i = -1;
+      let last_rank = -1;
       let last_score = -1;
       let mrank = -1;
       const ranked: Array<[number, GuildMember, number]> = [];
-      for (let i = 0; 2 * i < scores.length; i++) {
+      for (let i = 0, j = 0; 2 * i < scores.length; i++) {
         let member;
         try {
           member = await interaction.guild!.members.fetch(scores[2 * i]);
@@ -40,10 +40,11 @@ export async function scoreboard(interaction: Interaction): Promise<string> {
           continue;
         }
         const score = Number(scores[2 * i + 1]);
-        const rank = score === last_score ? last_i + 1 : i + 1;
+        ++j;
+        const rank = score === last_score ? last_rank : j;
         if (interaction.user?.id === member.id) mrank = rank;
         ranked.push([rank, member, score]);
-        last_i = i;
+        last_rank = rank;
         last_score = score;
       }
       let entries: string[] = [];

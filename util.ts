@@ -158,8 +158,8 @@ function isDisqualified(image: BooruImage): boolean {
   return false;
 }
 
-const danbooruUser = env("KOAKUMA_DANBOORU_USER");
-const danbooruApiKey = env("KOAKUMA_DANBOORU_API_KEY");
+const danbooruUser = process.env["KOAKUMA_DANBOORU_USER"];
+const danbooruApiKey = process.env["KOAKUMA_DANBOORU_API_KEY"];
 
 export async function getImages(
   amount: number,
@@ -172,7 +172,7 @@ export async function getImages(
       let url = new URL(safebooruRoot + "/posts.json");
       url.searchParams.set("limit", "100");
       url.searchParams.set("tags", tag);
-      if (danbooruUser) {
+      if (danbooruUser && danbooruApiKey) {
         url.searchParams.set("login", danbooruUser);
         url.searchParams.set("api_key", danbooruApiKey);
       }
