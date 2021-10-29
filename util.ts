@@ -111,6 +111,17 @@ export async function tagWikiEmbed(
   return new MessageEmbed({
     title: tag.replace(/_/g, " "),
     url: wikiUrl,
+    footer: {
+      text: document
+        .querySelector("#subnav-posts-link")
+        ?.textContent?.replace(
+          /Posts \((\d+)\)/,
+          (_, n) =>
+            new Intl.NumberFormat("en-US").format(n) +
+            " post" +
+            (n === 1 ? "" : "s")
+        ),
+    },
     description,
   });
 }
