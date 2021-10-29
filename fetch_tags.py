@@ -7,7 +7,7 @@ import json
 TAGS_PAGE_URL = 'https://danbooru.donmai.us/tags.json?limit=1000&search[order]=count&page={}'
 TAG_ALIASES_PAGE_URL = 'https://danbooru.donmai.us/tag_aliases.json?limit=1000&page={}'
 
-PAGES = 9  # 9000 tags
+PAGES = 13  # 13000 tags
 
 GENERAL = 0
 ARTIST = 1
@@ -67,7 +67,7 @@ def fetch_tags():
             relevant = tag_category in allowed
 
             if wordish and decent and relevant:
-                # if i == 7 and tag_category == GENERAL: print(tag_name)
+                if i > 9 and tag_category == GENERAL: print(tag_name)
                 tags.append(tag_name)
 
     print('Writing tags.txt.', file=sys.stderr)

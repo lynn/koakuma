@@ -1,9 +1,11 @@
 import {
   Client,
+  Guild,
   GuildMember,
   Intents,
   Message,
   PartialMessage,
+  TextBasedChannels,
   TextChannel,
 } from "discord.js";
 import { readFileSync } from "fs";
@@ -24,6 +26,7 @@ import {
   env,
   gameChannelSuggestion,
   getImages,
+  isBoring,
   mono,
   normalize,
   shuffleArray,
@@ -41,7 +44,7 @@ for (const [k, vs] of Object.entries(aliases)) {
 const tags = readFileSync("./tags.txt").toString().trimEnd().split("\n");
 shuffleArray(tags);
 
-let game: Game | undefined = undefined;
+let currentGame: Game | undefined = undefined;
 let manualQueue: Manual[] = [];
 
 class Game {
@@ -74,8 +77,13 @@ class Game {
       tag = tags[Game.tagIndex];
       Game.tagIndex = (Game.tagIndex + 1) % tags.length;
       if (Game.tagIndex === 0) shuffleArray(tags);
+      if (isBoring(tag)) {
+        console.log("Skipping boring tag: " + tag);
+        continue;
+      }
       images = await getImages(imagesPerGame, tag);
     } while (images === undefined);
+    console.log("Choosing tag: " + tag);
     return new Game(channel, tag, images);
   }
 
@@ -209,45 +217,45 @@ client.on("ready", () => {
   console.log(`Logged in as ${client?.user?.tag}! Loaded ${tags.length} tags.`);
 });
 
+async function startGame(channel: TextBasedChannels): Promise<string> {
+  if (channel.type !== "GUILD_TEXT") return "Let's play in a text channel!";
+  if (!gameChannelNames.includes(channel.name)) {
+    return await gameChannelSuggestion(channel.guild);
+  }
+  const manual = manualQueue.shift();
+  const newGame = manual
+    ? Game.manual(channel, manual)
+    : await Game.random(channel);
+  if (currentGame && !currentGame.finished) {
+    return "There's still an active game.";
+  }
+  currentGame = newGame;
+  return currentGame.start();
+}
+
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
-  const { channel, guild, options } = interaction;
+  const { channel, options } = interaction;
   if (!channel) return;
   if (!channel.isText()) return;
   if (!interaction.member) return;
 
   switch (interaction.commandName) {
     case "start": {
-      if (channel.type !== "GUILD_TEXT") return;
-      if (!guild) return;
-      if (!gameChannelNames.includes(channel.name)) {
-        await interaction.reply(await gameChannelSuggestion(guild));
-        return;
-      }
       await interaction.deferReply();
-      const manual = manualQueue.shift();
-      const newGame = manual
-        ? Game.manual(channel, manual)
-        : await Game.random(channel);
-      if (game && !game.finished) {
-        await interaction.editReply("There's still an active game.");
-        break;
-      }
-      game = newGame;
-      await interaction.editReply(game.start());
+      await interaction.editReply(await startGame(channel));
       break;
     }
     case "manual": {
       if (channel.type !== "GUILD_TEXT") return;
-      if (!guild) return;
       if (!gameChannelNames.includes(channel.name)) {
-        await interaction.reply(await gameChannelSuggestion(guild));
+        await interaction.reply(await gameChannelSuggestion(channel.guild));
         return;
       }
       if (
-        game &&
-        game.gameMaster?.id === interaction.user.id &&
-        !game.finished
+        currentGame &&
+        currentGame.gameMaster?.id === interaction.user.id &&
+        !currentGame.finished
       ) {
         await interaction.reply({
           content: "Let's wait for your game to finish.",
@@ -288,13 +296,13 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.editReply(
           `${pre}I added your tag to the queue. There ${areTags} ahead of yours.`
         );
-      } else if (game && !game.finished) {
+      } else if (currentGame && !currentGame.finished) {
         manualQueue.push(manual);
         await interaction.editReply(pre + "I'll use your tag after this game.");
       } else {
         await interaction.editReply(pre + "Starting a game with your tag!");
-        game = Game.manual(channel, manual);
-        await channel.send(game.start());
+        currentGame = Game.manual(channel, manual);
+        await channel.send(currentGame.start());
       }
       break;
     }
@@ -342,11 +350,18 @@ client.on("interactionCreate", async (interaction) => {
 async function processGuess(message: Message | PartialMessage): Promise<void> {
   const { member, content } = message;
   if (!content) return;
-  if (/^!\w+/.test(content)) {
+  if (content.trim() === "!testboring") {
+    // for (let i = 0; i < 100; i++) {
+    //   await startGame(message.channel);
+    //   if (currentGame) currentGame.finished = true;
+    // }
+  } else if (content.trim() === "!start") {
+    message.reply(await startGame(message.channel));
+  } else if (/^!\w+/.test(content)) {
     const fixed = content.replace(/!/, "/").replace(/ .*/, "");
     message.reply(`I use slash-commands now. Try typing **${fixed}**!`);
-  } else if (member && game && game.isCorrect(content)) {
-    game.reveal(member);
+  } else if (member && currentGame && currentGame.isCorrect(content)) {
+    currentGame.reveal(member);
   }
 }
 

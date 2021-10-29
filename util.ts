@@ -36,6 +36,13 @@ export function isBad(tag: string): boolean {
   return badRegex.test(tag);
 }
 
+const boringRegex =
+  /uniform$|^(light_|dark_)?(aqua|beige|black|blonde|blue|brown|colored|gold|green|gray|grey|magenta|multicolored|orange|pink|purple|teal|two-tone|red|silver|yellow|white)_/;
+
+export function isBoring(tag: string): boolean {
+  return boringRegex.test(tag);
+}
+
 export function isUnguessable(tag: string): boolean {
   return ["one-hour_drawing_challenge", "doujinshi", "original"].includes(tag);
 }
