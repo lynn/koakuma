@@ -59,6 +59,18 @@ const commands: ApplicationCommandData[] = [
         type: stringType,
         required: false,
       },
+      {
+        name: "tag5",
+        description: "A fifth tag to search for.",
+        type: stringType,
+        required: false,
+      },
+      {
+        name: "tag6",
+        description: "A sixth tag to search for.",
+        type: stringType,
+        required: false,
+      },
     ],
   },
   {

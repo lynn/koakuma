@@ -4,6 +4,8 @@ import {
   GuildMember,
   Intents,
   Message,
+  MessageEmbed,
+  MessagePayload,
   PartialMessage,
   TextBasedChannels,
   TextChannel,
@@ -233,6 +235,20 @@ async function startGame(channel: TextBasedChannels): Promise<string> {
   return currentGame.start();
 }
 
+async function show(
+  query: string
+): Promise<string | { content: string; embeds: MessageEmbed[] }> {
+  const images = await getImages(1, query);
+  if (images) {
+    return {
+      content: `Here's what I found for ${mono(query)}:`,
+      embeds: [creditEmbed(images[0])],
+    };
+  } else {
+    return `Sorry, no results for ${mono(query)}.`;
+  }
+}
+
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
   const { channel, options } = interaction;
@@ -309,20 +325,12 @@ client.on("interactionCreate", async (interaction) => {
     case "show": {
       await interaction.deferReply();
       let tags: string[] = [];
-      for (const k of ["tag", "tag2", "tag3", "tag4"]) {
+      for (const k of ["tag", "tag2", "tag3", "tag4", "tag5", "tag6"]) {
         const tag = options.getString(k);
         if (tag) tags.push(tag.replace(/\s+/g, "_"));
       }
-      const images = await getImages(1, tags.join(" "));
-      const query = mono(tags.join(" "));
-      if (images) {
-        await interaction.editReply({
-          content: `Here's what I found for ${query}:`,
-          embeds: [creditEmbed(images[0])],
-        });
-      } else {
-        await interaction.editReply(`Sorry, no results for ${query}.`);
-      }
+      const query = tags.join(" ");
+      await interaction.editReply(await show(query));
       break;
     }
     case "wiki": {
@@ -357,6 +365,14 @@ async function processGuess(message: Message | PartialMessage): Promise<void> {
     // }
   } else if (content.trim() === "!start") {
     message.reply(await startGame(message.channel));
+  } else if (content.trim().startsWith("!show")) {
+    const query = content
+      .trim()
+      .replace(/^!show\s+/, "")
+      .split(/\s+AND\s+/)
+      .map((x) => x.replace(/\s/g, "_"))
+      .join(" ");
+    message.reply(await show(query));
   } else if (/^!\w+/.test(content)) {
     const fixed = content.replace(/!/, "/").replace(/ .*/, "");
     message.reply(`I use slash-commands now. Try typing **${fixed}**!`);
