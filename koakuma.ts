@@ -72,9 +72,10 @@ class Game {
     }
   }
 
-  static async random(channel: TextChannel): Promise<Game> {
+  static async random(channel: TextChannel): Promise<Game | undefined> {
     let images: BooruImage[] | undefined = undefined;
     let tag: string;
+    let tries = 0;
     do {
       tag = tags[Game.tagIndex];
       Game.tagIndex = (Game.tagIndex + 1) % tags.length;
@@ -83,8 +84,16 @@ class Game {
         console.log("Skipping boring tag: " + tag);
         continue;
       }
+      ++tries;
       images = await getImages(imagesPerGame, tag);
-    } while (images === undefined);
+    } while (
+      tries < 3 &&
+      images === undefined &&
+      (await sleep(1)) === undefined
+    );
+    if (images === undefined) {
+      return undefined;
+    }
     console.log("Choosing tag: " + tag);
     return new Game(channel, tag, images);
   }
@@ -232,6 +241,9 @@ async function startGame(channel: TextBasedChannels): Promise<string> {
     return "There's still an active game.";
   }
   currentGame = newGame;
+  if (!currentGame) {
+    return "Sorry, I couldn't find any images at all. Something is seriously wrong! Please tell an admin.";
+  }
   return currentGame.start();
 }
 

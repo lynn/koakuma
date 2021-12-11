@@ -185,7 +185,7 @@ export async function getImages(
 ): Promise<BooruImage[] | undefined> {
   const ids = new Set();
   const images: BooruImage[] = [];
-  for (let retry = 0; retry < 3; retry++) {
+  for (let retry = 0; retry < 2; retry++) {
     try {
       let url = new URL(safebooruRoot + "/posts.json");
       url.searchParams.set("limit", "100");
@@ -208,9 +208,10 @@ export async function getImages(
         if (images.length >= amount) return images;
       }
     } catch (e) {
-      console.log("Connection error. Retrying.", e);
+      console.log("Connection error.", e);
+      return undefined;
     }
-    await sleep(0.2);
+    await sleep(1.5);
   }
   console.log(`Ran out of tries, ${tag} must not have many images...`);
   return undefined;
