@@ -16,6 +16,12 @@ const commands: ApplicationCommandData[] = [
     options: [],
   },
   {
+    name: "random",
+    description:
+      "Start a game with a random tag. Images are fully random, rather than biased towards recent posts.",
+    options: [],
+  },
+  {
     name: "manual",
     description: "Hand-pick a tag for others to play with.",
     options: [

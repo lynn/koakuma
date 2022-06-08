@@ -72,7 +72,10 @@ class Game {
     }
   }
 
-  static async random(channel: TextChannel): Promise<Game | undefined> {
+  static async random(
+    channel: TextChannel,
+    trulyRandom: boolean
+  ): Promise<Game | undefined> {
     let images: BooruImage[] | undefined = undefined;
     let tag: string;
     let tries = 0;
@@ -85,7 +88,8 @@ class Game {
         continue;
       }
       ++tries;
-      images = await getImages(imagesPerGame, tag);
+      const query = tag + (trulyRandom ? " random:100" : "");
+      images = await getImages(imagesPerGame, query);
     } while (
       tries < 3 &&
       images === undefined &&
@@ -228,7 +232,10 @@ client.on("ready", () => {
   console.log(`Logged in as ${client?.user?.tag}! Loaded ${tags.length} tags.`);
 });
 
-async function startGame(channel: TextBasedChannels): Promise<string> {
+async function startGame(
+  channel: TextBasedChannels,
+  trulyRandom: boolean
+): Promise<string> {
   if (channel.type !== "GUILD_TEXT") return "Let's play in a text channel!";
   if (!gameChannelNames.includes(channel.name)) {
     return await gameChannelSuggestion(channel.guild);
@@ -236,7 +243,7 @@ async function startGame(channel: TextBasedChannels): Promise<string> {
   const manual = manualQueue.shift();
   const newGame = manual
     ? Game.manual(channel, manual)
-    : await Game.random(channel);
+    : await Game.random(channel, trulyRandom);
   if (currentGame && !currentGame.finished) {
     return "There's still an active game.";
   }
@@ -271,7 +278,12 @@ client.on("interactionCreate", async (interaction) => {
   switch (interaction.commandName) {
     case "start": {
       await interaction.deferReply();
-      await interaction.editReply(await startGame(channel));
+      await interaction.editReply(await startGame(channel, false));
+      break;
+    }
+    case "random": {
+      await interaction.deferReply();
+      await interaction.editReply(await startGame(channel, true));
       break;
     }
     case "manual": {
@@ -367,7 +379,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-async function processGuess(message: Message | PartialMessage): Promise<void> {
+async function handleMessage(message: Message | PartialMessage): Promise<void> {
   const { member, content } = message;
   if (!content) return;
   if (content.trim() === "!testboring") {
@@ -376,7 +388,9 @@ async function processGuess(message: Message | PartialMessage): Promise<void> {
     //   if (currentGame) currentGame.finished = true;
     // }
   } else if (content.trim() === "!start") {
-    message.reply(await startGame(message.channel));
+    message.reply(await startGame(message.channel, false));
+  } else if (content.trim() === "!random") {
+    message.reply(await startGame(message.channel, true));
   } else if (content.trim().startsWith("!show")) {
     const query = content
       .trim()
@@ -393,8 +407,8 @@ async function processGuess(message: Message | PartialMessage): Promise<void> {
   }
 }
 
-client.on("messageCreate", processGuess);
-client.on("messageUpdate", (_, after) => processGuess(after));
+client.on("messageCreate", handleMessage);
+client.on("messageUpdate", (_, after) => handleMessage(after));
 client.on("error", console.error);
 process.on("unhandledRejection", console.error);
 
