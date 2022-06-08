@@ -143,6 +143,11 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
     ? `https://www.pixiv.net/artworks/${pixiv}`
     : image.source || "unknown";
   const match = source.match(/https?:\/\/(www\.)?([^/]+)/);
+  const link_source = match ? `[${source}](${source})` : source;
+  const final_source =
+    source.startsWith("https://images-wixmp-") || link_source.length >= 1024
+      ? "(see danbooru for source link)"
+      : link_source;
   return new MessageEmbed({
     title: `${characters} :art: ${artist}`.trim(),
     url: `${safebooruRoot}/posts/${image.id}`,
@@ -150,7 +155,7 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
     fields: [
       {
         name: "Source",
-        value: match ? `[${source}](${source})` : source,
+        value: final_source,
         inline: true,
       },
     ],
