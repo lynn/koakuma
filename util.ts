@@ -126,6 +126,20 @@ export async function tagWikiEmbed(
   });
 }
 
+function fixSource(source: string): string {
+  console.log(source);
+  const deviant =
+    source.match(
+      /(?:deviantart|wixmp-ed30a86b8c4ca887773594c2).*.+_by_.+[_-]d([a-z0-9]+)(?:-\w+)?\.(jpe?g|png)/i
+    ) ||
+    source.match(
+      /(?:deviantart|wixmp-ed30a86b8c4ca887773594c2).*d([0-9a-z]+)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-\w+)?\.(jpe?g|png)/i
+    );
+  return deviant
+    ? "https://www.deviantart.com/deviation/" + parseInt(deviant[1], 36)
+    : source;
+}
+
 export function creditEmbed(image: BooruImage): MessageEmbed {
   const characters = commatize(
     (image.tag_string_character || image.tag_string_copyright || "artwork")
@@ -141,7 +155,9 @@ export function creditEmbed(image: BooruImage): MessageEmbed {
   const pixiv = image.pixiv_id;
   const source = pixiv
     ? `https://www.pixiv.net/artworks/${pixiv}`
-    : image.source || "unknown";
+    : image.source
+    ? fixSource(image.source)
+    : "unknown";
   const match = source.match(/https?:\/\/(www\.)?([^/]+)/);
   const link_source = match ? `[${source}](${source})` : source;
   const final_source =
