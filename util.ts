@@ -92,7 +92,9 @@ export async function tagWikiEmbed(
   tag: string
 ): Promise<MessageEmbed | undefined> {
   const wikiUrl = safebooruRoot + "/wiki_pages/" + tag;
-  const body = await (await fetch(wikiUrl)).buffer();
+  const options = { headers: { "User-Agent": "koakuma" } };
+  const response = await fetch(wikiUrl, options);
+  const body = await response.buffer();
   const contentType = "text/html;charset=utf-8";
   const document = new JSDOM(body, { contentType }).window.document;
 
@@ -215,7 +217,8 @@ export async function getImages(
         url.searchParams.set("login", danbooruUser);
         url.searchParams.set("api_key", danbooruApiKey);
       }
-      const result = await fetch(url);
+      const options = { headers: { "User-Agent": "koakuma" } };
+      const result = await fetch(url, options);
       const candidates = (await result.json()) as BooruImage[];
       if (!Array.isArray(candidates)) {
         console.log("candidates not an array?", url);
