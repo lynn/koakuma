@@ -6,6 +6,7 @@ import json
 
 TAGS_PAGE_URL = 'https://danbooru.donmai.us/tags.json?limit=1000&search[order]=count&page={}'
 TAG_ALIASES_PAGE_URL = 'https://danbooru.donmai.us/tag_aliases.json?limit=1000&page={}'
+HEADERS = {"User-Agent": "koakuma"}
 
 PAGES = 13  # 13000 tags
 
@@ -34,7 +35,7 @@ def fetch_aliases():
     for i in range(1, 21):
         print('Fetching page {} of aliases...'.format(i), file=sys.stderr)
         url = TAG_ALIASES_PAGE_URL.format(i)
-        page = requests.get(url).json()
+        page = requests.get(url, headers=HEADERS).json()
         if not page: break
         for alias_data in page:
             antecedent = alias_data['antecedent_name']
@@ -53,7 +54,7 @@ def fetch_tags():
     for i in range(1, PAGES + 1):
         print('Fetching page {} of tags...'.format(i), file=sys.stderr)
         url = TAGS_PAGE_URL.format(i)
-        for tag_data in requests.get(url).json():
+        for tag_data in requests.get(url, headers=HEADERS).json():
             tag_name = tag_data['name']
             tag_category = tag_data['category']
 
